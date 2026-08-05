@@ -1,0 +1,4 @@
+cedula,contrasena,nombre,primer_apellido,segundo_apellido,estado_admision
+123456789,ClaveSegura2027,Ana,Jiménez,Rojas,Admitido
+234567890,OtraClave2027,Luis,Solano,Vargas,En lista de espera
+345678901,AccesoSeguro2027,María,Fernández,López,No Admitido

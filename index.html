@@ -1,0 +1,122 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Consulta oficial de resultados de admisión a sétimo año del CTP Cañas para el ciclo lectivo 2027.">
+  <meta name="theme-color" content="#087f7b">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://*.supabase.co wss://*.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+  <title>Resultados de admisión 2027 | CTP Cañas</title>
+  <link rel="icon" href="assets/escudo-ctp-canas.webp" type="image/webp">
+  <link href="assets/vendor/bootstrap-5.3.8.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="consulta">
+  <a class="skip-link" href="#contenido-principal">Saltar al contenido principal</a>
+
+  <header class="institutional-header">
+    <div class="container header-inner">
+      <img class="brand-shield" src="assets/escudo-ctp-canas.webp" alt="Escudo del Colegio Técnico Profesional de Cañas" width="156" height="127">
+      <div class="brand-copy">
+        <p class="eyebrow">Colegio Técnico Profesional de Cañas</p>
+        <h1>Resultados de admisión a sétimo año</h1>
+        <p class="cycle-label">Ciclo lectivo 2027</p>
+      </div>
+    </div>
+  </header>
+
+  <main id="contenido-principal" class="container page-shell">
+    <section class="welcome-copy" aria-labelledby="titulo-consulta">
+      <p class="section-kicker">Consulta individual y confidencial</p>
+      <h2 id="titulo-consulta">Consulte el resultado del proceso de admisión</h2>
+      <p>Ingrese la cédula y la contraseña facilitada por el centro educativo. La información mostrada corresponde únicamente a la persona aspirante identificada.</p>
+    </section>
+
+    <div id="config-alert" class="alert alert-warning d-none" role="alert"></div>
+
+    <section id="availability-card" class="availability-card" aria-live="polite" aria-labelledby="availability-title">
+      <span id="availability-icon" class="status-dot status-dot--loading" aria-hidden="true"></span>
+      <div>
+        <h2 id="availability-title" class="availability-title">Verificando disponibilidad</h2>
+        <p id="availability-message" class="mb-0">Espere un momento mientras se consulta el horario oficial.</p>
+      </div>
+    </section>
+
+    <div class="content-grid">
+      <section class="panel-card login-card" aria-labelledby="login-title">
+        <div class="panel-heading">
+          <span class="panel-number" aria-hidden="true">1</span>
+          <div>
+            <p class="panel-overline">Identificación</p>
+            <h2 id="login-title">Datos de acceso</h2>
+          </div>
+        </div>
+
+        <form id="student-form" novalidate>
+          <div class="mb-3">
+            <label for="cedula" class="form-label">Número de cédula o identificación</label>
+            <input id="cedula" name="cedula" class="form-control form-control-lg" type="text" inputmode="numeric" autocomplete="username" maxlength="20" required aria-describedby="cedula-help">
+            <div id="cedula-help" class="form-text">Puede escribir el número con o sin guiones.</div>
+            <div class="invalid-feedback">Ingrese una identificación válida.</div>
+          </div>
+
+          <div class="mb-4">
+            <label for="contrasena" class="form-label">Contraseña</label>
+            <div class="password-field">
+              <input id="contrasena" name="contrasena" class="form-control form-control-lg" type="password" autocomplete="current-password" maxlength="72" required>
+              <button class="password-toggle" type="button" data-password-toggle="contrasena" aria-label="Mostrar contraseña" aria-pressed="false">Mostrar</button>
+            </div>
+            <div class="invalid-feedback">Ingrese la contraseña entregada por el centro educativo.</div>
+          </div>
+
+          <button id="consult-button" class="btn btn-primary btn-lg w-100" type="submit" disabled>
+            <span class="button-label">Consultar resultado</span>
+            <span class="spinner-border spinner-border-sm d-none" aria-hidden="true"></span>
+          </button>
+        </form>
+
+        <div id="form-message" class="form-message d-none" role="alert" aria-live="assertive"></div>
+        <p class="privacy-note">Por seguridad, no comparta su contraseña ni utilice equipos públicos para realizar esta consulta.</p>
+      </section>
+
+      <section id="result-card" class="panel-card result-card result-card--empty" aria-labelledby="result-title" tabindex="-1">
+        <div id="result-placeholder" class="result-placeholder">
+          <div class="result-placeholder-icon" aria-hidden="true">✓</div>
+          <p class="panel-overline">Resultado oficial</p>
+          <h2 id="result-title">Su resultado aparecerá aquí</h2>
+          <p>Cuando el sistema esté disponible, complete los datos de acceso y seleccione <strong>Consultar resultado</strong>.</p>
+        </div>
+
+        <div id="result-content" class="d-none" aria-live="polite">
+          <div id="result-symbol" class="result-symbol" aria-hidden="true"></div>
+          <p class="panel-overline">Resultado del proceso</p>
+          <p id="student-name" class="student-name"></p>
+          <h2 id="admission-status" class="admission-status"></h2>
+          <p id="admission-message" class="admission-message"></p>
+          <p class="official-note">Este resultado es informativo. Ante cualquier duda, comuníquese directamente con el CTP Cañas por los canales oficiales.</p>
+          <button id="new-query" class="btn btn-outline-secondary" type="button">Realizar otra consulta</button>
+        </div>
+      </section>
+    </div>
+
+    <section class="support-card" aria-labelledby="support-title">
+      <div aria-hidden="true" class="support-icon">i</div>
+      <div>
+        <h2 id="support-title">¿Tiene dificultades para ingresar?</h2>
+        <p class="mb-0">Verifique que los datos coincidan con los entregados por el centro educativo. El personal institucional no solicitará su contraseña mediante mensajes o llamadas.</p>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="container footer-inner">
+      <p>© <span id="current-year">2027</span> Colegio Técnico Profesional de Cañas</p>
+      <a href="admin/" aria-label="Ingresar al área administrativa">Área administrativa</a>
+    </div>
+  </footer>
+
+  <script src="assets/vendor/supabase-2.112.0.min.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js" defer></script>
+</body>
+</html>

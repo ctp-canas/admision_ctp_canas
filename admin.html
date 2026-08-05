@@ -1,0 +1,259 @@
+<!doctype html>
+<html lang="es">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Administración del sistema de resultados de admisión del CTP Cañas.">
+  <meta name="theme-color" content="#087f7b">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:; connect-src https://*.supabase.co wss://*.supabase.co; font-src 'self'; object-src 'none'; base-uri 'self'; form-action 'self'; upgrade-insecure-requests">
+  <title>Administración | Resultados de admisión CTP Cañas</title>
+  <link rel="icon" href="assets/escudo-ctp-canas.webp" type="image/webp">
+  <link href="assets/vendor/bootstrap-5.3.8.min.css" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="admin">
+  <a class="skip-link" href="#contenido-principal">Saltar al contenido principal</a>
+
+  <header class="admin-header">
+    <div class="container admin-header-inner">
+      <div class="admin-brand">
+        <img src="assets/escudo-ctp-canas.webp" alt="Escudo del CTP Cañas" width="72" height="59">
+        <div>
+          <p class="eyebrow">CTP Cañas</p>
+          <h1>Administración de admisiones</h1>
+        </div>
+      </div>
+      <div class="admin-actions">
+        <span id="admin-email" class="admin-email d-none"></span>
+        <button id="logout-button" class="btn btn-outline-light d-none" type="button">Cerrar sesión</button>
+        <a class="btn btn-light" href="index.html">Ver consulta pública</a>
+      </div>
+    </div>
+  </header>
+
+  <main id="contenido-principal" class="container admin-shell">
+    <div id="admin-config-alert" class="alert alert-warning d-none" role="alert"></div>
+
+    <section id="admin-login" class="auth-card" aria-labelledby="admin-login-title">
+      <div class="auth-crest-wrap">
+        <img src="assets/escudo-ctp-canas.webp" alt="" width="120" height="98">
+      </div>
+      <p class="section-kicker">Acceso restringido</p>
+      <h2 id="admin-login-title">Inicio de sesión administrativo</h2>
+      <p>Utilice el usuario administrativo asignado por el centro educativo. Este acceso es independiente de las credenciales de las personas aspirantes.</p>
+
+      <form id="admin-login-form" novalidate>
+        <div class="mb-3">
+          <label class="form-label" for="admin-username">Usuario</label>
+          <input id="admin-username" class="form-control form-control-lg" type="text" inputmode="numeric" autocomplete="username" minlength="5" maxlength="20" pattern="[0-9]+" required>
+          <div class="invalid-feedback">Ingrese el usuario numérico asignado.</div>
+        </div>
+        <div class="mb-4">
+          <label class="form-label" for="admin-password">Contraseña</label>
+          <div class="password-field">
+            <input id="admin-password" class="form-control form-control-lg" type="password" autocomplete="current-password" required>
+            <button class="password-toggle" type="button" data-password-toggle="admin-password" aria-label="Mostrar contraseña" aria-pressed="false">Mostrar</button>
+          </div>
+          <div class="invalid-feedback">Ingrese su contraseña.</div>
+        </div>
+        <button id="admin-login-button" class="btn btn-primary btn-lg w-100" type="submit">
+          <span class="button-label">Ingresar</span>
+          <span class="spinner-border spinner-border-sm d-none" aria-hidden="true"></span>
+        </button>
+      </form>
+      <div id="admin-login-message" class="form-message d-none" role="alert" aria-live="assertive"></div>
+    </section>
+
+    <section id="admin-dashboard" class="d-none" aria-labelledby="dashboard-title">
+      <div class="dashboard-title-row">
+        <div>
+          <p class="section-kicker">Panel de control</p>
+          <h2 id="dashboard-title">Proceso de admisión 2027</h2>
+        </div>
+        <div id="system-summary" class="system-summary">Cargando estado…</div>
+      </div>
+
+      <nav class="dashboard-tabs" aria-label="Secciones administrativas">
+        <button class="dashboard-tab active" type="button" data-panel="students-panel" aria-controls="students-panel" aria-selected="true">Aspirantes</button>
+        <button class="dashboard-tab" type="button" data-panel="import-panel" aria-controls="import-panel" aria-selected="false">Importar Excel o CSV</button>
+        <button class="dashboard-tab" type="button" data-panel="schedule-panel" aria-controls="schedule-panel" aria-selected="false">Disponibilidad</button>
+        <button class="dashboard-tab dashboard-tab--danger" type="button" data-panel="security-panel" aria-controls="security-panel" aria-selected="false">Acciones críticas</button>
+      </nav>
+
+      <section id="students-panel" class="dashboard-panel" aria-labelledby="students-heading">
+        <div class="panel-toolbar">
+          <div>
+            <h3 id="students-heading">Registro de aspirantes</h3>
+            <p id="student-count" class="text-secondary mb-0">Cargando registros…</p>
+          </div>
+          <button id="add-student-button" class="btn btn-primary" type="button">Agregar aspirante</button>
+        </div>
+
+        <form id="search-form" class="search-row" role="search">
+          <label class="visually-hidden" for="search-input">Buscar aspirantes</label>
+          <input id="search-input" class="form-control" type="search" placeholder="Buscar por cédula, nombre o apellido" autocomplete="off">
+          <button class="btn btn-outline-primary" type="submit">Buscar</button>
+          <button id="clear-search" class="btn btn-outline-secondary" type="button">Limpiar</button>
+        </form>
+
+        <div id="table-message" class="form-message d-none" role="alert"></div>
+        <div class="table-responsive student-table-wrap">
+          <table class="table align-middle student-table">
+            <caption class="visually-hidden">Lista de aspirantes y sus estados de admisión</caption>
+            <thead>
+              <tr>
+                <th scope="col">Cédula</th>
+                <th scope="col">Nombre completo</th>
+                <th scope="col">Estado</th>
+                <th scope="col" class="text-end">Acciones</th>
+              </tr>
+            </thead>
+            <tbody id="students-body"></tbody>
+          </table>
+        </div>
+        <div id="empty-students" class="empty-state d-none">No se encontraron aspirantes con los criterios indicados.</div>
+        <div class="pagination-row">
+          <button id="previous-page" class="btn btn-outline-secondary" type="button" disabled>Anterior</button>
+          <span id="page-label">Página 1</span>
+          <button id="next-page" class="btn btn-outline-secondary" type="button" disabled>Siguiente</button>
+        </div>
+      </section>
+
+      <section id="import-panel" class="dashboard-panel d-none" aria-labelledby="import-heading">
+        <div class="panel-toolbar">
+          <div>
+            <h3 id="import-heading">Carga masiva de aspirantes</h3>
+            <p class="text-secondary mb-0">Formatos admitidos: .xlsx, .xls y .csv. Máximo 5 000 filas y 5 MB.</p>
+          </div>
+          <a class="btn btn-outline-primary" href="plantilla_importacion.csv" download>Descargar plantilla CSV</a>
+        </div>
+
+        <div class="import-dropzone">
+          <label for="import-file" class="form-label fw-semibold">Seleccione el archivo</label>
+          <input id="import-file" class="form-control form-control-lg" type="file" accept=".xlsx,.xls,.csv">
+          <p class="form-text mb-0">Columnas requeridas: cedula, contrasena, nombre, primer_apellido, segundo_apellido y estado_admision.</p>
+        </div>
+
+        <div id="import-preview" class="import-preview d-none" aria-live="polite">
+          <h4>Vista previa</h4>
+          <p id="import-summary"></p>
+          <div class="table-responsive">
+            <table class="table table-sm">
+              <thead><tr><th>Cédula</th><th>Nombre</th><th>Estado</th></tr></thead>
+              <tbody id="import-preview-body"></tbody>
+            </table>
+          </div>
+          <button id="import-button" class="btn btn-primary" type="button">Importar y actualizar coincidencias</button>
+        </div>
+        <div id="import-message" class="form-message d-none" role="alert" aria-live="assertive"></div>
+      </section>
+
+      <section id="schedule-panel" class="dashboard-panel d-none" aria-labelledby="schedule-heading">
+        <h3 id="schedule-heading">Horario de publicación de resultados</h3>
+        <p class="text-secondary">Las horas se registran y muestran en la zona horaria de Costa Rica (UTC−6).</p>
+        <form id="schedule-form" class="schedule-form" novalidate>
+          <div>
+            <label class="form-label" for="start-date">Fecha y hora de inicio</label>
+            <input id="start-date" class="form-control" type="datetime-local" required>
+          </div>
+          <div>
+            <label class="form-label" for="end-date">Fecha y hora de cierre</label>
+            <input id="end-date" class="form-control" type="datetime-local" required>
+          </div>
+          <div class="form-check form-switch schedule-switch">
+            <input id="system-enabled" class="form-check-input" type="checkbox" role="switch">
+            <label class="form-check-label" for="system-enabled">Habilitar la publicación durante el horario establecido</label>
+          </div>
+          <div class="schedule-actions">
+            <button id="save-schedule" class="btn btn-primary" type="submit">Guardar horario</button>
+          </div>
+        </form>
+        <div id="schedule-message" class="form-message d-none" role="alert" aria-live="assertive"></div>
+      </section>
+
+      <section id="security-panel" class="dashboard-panel d-none" aria-labelledby="security-heading">
+        <h3 id="security-heading">Acciones críticas</h3>
+        <div class="danger-zone">
+          <div>
+            <h4>Vaciar la base de datos de aspirantes</h4>
+            <p>Esta acción elimina todos los registros de aspirantes. No elimina las cuentas administrativas ni la configuración del horario.</p>
+          </div>
+          <button id="open-purge-dialog" class="btn btn-danger" type="button">Vaciar base de datos</button>
+        </div>
+      </section>
+    </section>
+  </main>
+
+  <dialog id="student-dialog" class="app-dialog" aria-labelledby="student-dialog-title">
+    <form id="student-editor-form" method="dialog" novalidate>
+      <div class="dialog-header">
+        <div>
+          <p class="panel-overline">Gestión individual</p>
+          <h2 id="student-dialog-title">Agregar aspirante</h2>
+        </div>
+        <button class="dialog-close" type="button" data-close-dialog="student-dialog" aria-label="Cerrar">×</button>
+      </div>
+      <input id="original-cedula" type="hidden">
+      <div class="dialog-grid">
+        <div>
+          <label class="form-label" for="edit-cedula">Cédula</label>
+          <input id="edit-cedula" class="form-control" type="text" maxlength="20" required>
+        </div>
+        <div>
+          <label class="form-label" for="edit-password">Contraseña</label>
+          <input id="edit-password" class="form-control" type="password" maxlength="72" autocomplete="new-password">
+          <p id="password-edit-help" class="form-text">Requerida para un registro nuevo.</p>
+        </div>
+        <div>
+          <label class="form-label" for="edit-name">Nombre</label>
+          <input id="edit-name" class="form-control" type="text" maxlength="80" required>
+        </div>
+        <div>
+          <label class="form-label" for="edit-first-name">Primer apellido</label>
+          <input id="edit-first-name" class="form-control" type="text" maxlength="80" required>
+        </div>
+        <div>
+          <label class="form-label" for="edit-second-name">Segundo apellido</label>
+          <input id="edit-second-name" class="form-control" type="text" maxlength="80">
+        </div>
+        <div>
+          <label class="form-label" for="edit-status">Estado de admisión</label>
+          <select id="edit-status" class="form-select" required>
+            <option value="Admitido">Admitido</option>
+            <option value="No Admitido">No admitido</option>
+            <option value="En lista de espera">En lista de espera</option>
+          </select>
+        </div>
+      </div>
+      <div id="editor-message" class="form-message d-none" role="alert"></div>
+      <div class="dialog-actions">
+        <button class="btn btn-outline-secondary" type="button" data-close-dialog="student-dialog">Cancelar</button>
+        <button id="save-student" class="btn btn-primary" type="submit">Guardar aspirante</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="purge-dialog" class="app-dialog app-dialog--danger" aria-labelledby="purge-title">
+    <div class="dialog-header">
+      <div>
+        <p class="panel-overline text-danger">Confirmación de seguridad</p>
+        <h2 id="purge-title">Vaciar la base de datos</h2>
+      </div>
+      <button class="dialog-close" type="button" data-close-dialog="purge-dialog" aria-label="Cerrar">×</button>
+    </div>
+    <p>La eliminación no se puede deshacer desde este panel. Antes de continuar, asegúrese de tener un respaldo.</p>
+    <label class="form-label" for="purge-confirmation">Escriba <strong>ELIMINAR TODO</strong> para confirmar:</label>
+    <input id="purge-confirmation" class="form-control" type="text" autocomplete="off">
+    <div id="purge-message" class="form-message d-none" role="alert"></div>
+    <div class="dialog-actions">
+      <button class="btn btn-outline-secondary" type="button" data-close-dialog="purge-dialog">Cancelar</button>
+      <button id="purge-button" class="btn btn-danger" type="button" disabled>Eliminar todos los aspirantes</button>
+    </div>
+  </dialog>
+
+  <script src="assets/vendor/supabase-2.112.0.min.js"></script>
+  <script src="assets/vendor/xlsx-0.20.3.min.js"></script>
+  <script src="config.js"></script>
+  <script src="app.js" defer></script>
+</body>
+</html>
