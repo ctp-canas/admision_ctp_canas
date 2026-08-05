@@ -1048,3 +1048,65 @@ a:hover {
     box-shadow: none;
   }
 }
+/* Centrar los textos del encabezado */
+@media (min-width: 701px) {
+  .header-inner {
+    display: grid;
+    grid-template-columns: 156px minmax(0, 1fr) 156px;
+    column-gap: 2.25rem;
+  }
+
+  .brand-shield {
+    grid-column: 1;
+    margin-right: 0;
+  }
+
+  .brand-copy {
+    grid-column: 2;
+    justify-self: center;
+    width: 100%;
+    max-width: 800px;
+    text-align: center;
+  }
+
+  .brand-copy h1 {
+    margin: 0 auto;
+  }
+}
+
+/* Centrado en tabletas */
+@media (min-width: 501px) and (max-width: 700px) {
+  .header-inner {
+    display: grid;
+    grid-template-columns: 105px minmax(0, 1fr) 105px;
+    gap: 1.15rem;
+    align-items: center;
+  }
+
+  .brand-shield {
+    grid-column: 1;
+    margin: 0;
+  }
+
+  .brand-copy {
+    grid-column: 2;
+    width: 100%;
+    text-align: center;
+  }
+
+  .brand-copy h1 {
+    margin: 0 auto;
+  }
+}
+
+/* Centrar el texto introductorio */
+.welcome-copy {
+  margin-right: auto;
+  margin-left: auto;
+  text-align: center;
+}
+
+.welcome-copy p:last-child {
+  margin-right: auto;
+  margin-left: auto;
+}
