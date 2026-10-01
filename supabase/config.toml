@@ -1,0 +1,4 @@
+project_id = "ctp-canas-admision-2027"
+[functions.admission]
+verify_jwt = false
+# Custom session verification is implemented by the function and its server-only RPC.

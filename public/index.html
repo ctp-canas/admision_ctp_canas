@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Resultados de Admisión 2027 - CTP Cañas</title><link rel="stylesheet" href="styles.css"></head>
+<body><div class="public-shell">
+<header class="brand-header"><div class="brand-left"><img class="logo-mep" src="assets/logo-mep.png" alt="Ministerio de Educación Pública"><div class="divider"></div><div class="brand-title"><h1>Colegio Técnico Profesional de Cañas</h1><p>Proceso de Admisión a Sétimo Año <span id="cycleYear">2027</span></p></div></div><img class="crest" src="assets/escudo-ctp.jpeg" alt="Escudo CTP Cañas"></header>
+<main class="public-main"><section class="public-card">
+<div class="consultation-heading"><p class="eyebrow">Sétimo año · <span data-cycle-year>2027</span></p><h2>Resultados de admisión</h2><p class="lead">Consulte el resultado con su identificación y la contraseña entregada.</p><div class="institution-label">Colegio Técnico Profesional de Cañas</div></div>
+<div class="consultation-content">
+<div id="availability" class="notice info" aria-live="polite">Consultando disponibilidad de resultados…</div>
+<form id="resultForm">
+<div class="field"><label for="identification">Número de identificación</label><input id="identification" autocomplete="username" autocapitalize="off" spellcheck="false" required placeholder="Ej. 7-0123-0456"></div>
+<div class="field"><label for="password">Contraseña</label><input id="password" type="password" maxlength="6" autocomplete="current-password" autocapitalize="characters" spellcheck="false" required placeholder="6 caracteres"><label class="password-toggle"><input id="showPassword" type="checkbox"> Mostrar contraseña</label></div>
+<button class="btn btn-primary btn-block" id="consultBtn">Consultar resultado</button>
+</form>
+<div id="resultBox" class="hidden" aria-live="polite" tabindex="-1"></div>
+<div class="admin-access"><a href="admin-login.html">Acceso administrativo</a></div>
+</div></section></main>
+<footer class="public-footer">Ministerio de Educación Pública · Colegio Técnico Profesional de Cañas</footer></div><script src="config.js"></script><script src="api.js"></script><script src="public.js"></script></body></html>
