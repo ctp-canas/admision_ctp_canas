@@ -30,7 +30,7 @@ begin
   delete from admission_private.rate_limits where started_at<now()-interval '1 day';
   insert into admission_private.sessions(token_hash,user_id,expires_at) values(login_hash,u.id,now()+interval '8 hours');
   perform admission_private.log_event(u.id,'LOGIN');
-  return jsonb_build_object('ok',true,'user',to_jsonb(u)-'password_hash');
+  return jsonb_build_object('ok',true,'user',to_jsonb(u)-array['password_hash','recovery_auth_id']);
  end if;
  if path='/api/public/status' and method='GET' then
   return jsonb_build_object('cycle_year',cfg->>'cycle_year','publication_at',nullif(cfg->>'publication_at',''),
@@ -52,7 +52,7 @@ begin
  select x.* into u from admission_private.users x join admission_private.sessions ss on ss.user_id=x.id
  where ss.token_hash=session_hash and ss.expires_at>now() and x.active;
  if path='/api/session' and method='GET' then
-  return jsonb_build_object('authenticated',u.id is not null,'user',case when u.id is not null then to_jsonb(u)-'password_hash' end);
+  return jsonb_build_object('authenticated',u.id is not null,'user',case when u.id is not null then to_jsonb(u)-array['password_hash','recovery_auth_id'] end);
  end if;
  if u.id is null then return '{"_status":401,"error":"Sesión finalizada"}'; end if;
  if path='/api/logout' and method='POST' then
@@ -194,12 +194,22 @@ begin
   'admitted_instructions',body->>'admitted_instructions','not_admitted_message',body->>'not_admitted_message') where id=1;
   perform admission_private.log_event(u.id,'PUBLICACION_CONFIGURADA',null,jsonb_build_object('publication_at',body->>'publication_at','published',body->>'published')); return '{"ok":true}';
  end if;
- if path='/api/admin/users' and method='GET' then return jsonb_build_object('rows',(select coalesce(jsonb_agg(to_jsonb(x)-'password_hash' order by id),'[]') from admission_private.users x)); end if;
+ if path='/api/admin/users' and method='GET' then return jsonb_build_object('rows',(select coalesce(jsonb_agg(to_jsonb(x)-array['password_hash','recovery_auth_id'] order by id),'[]') from admission_private.users x)); end if;
  if path='/api/admin/users' and method='POST' then
   if trim(coalesce(body->>'username',''))='' or trim(coalesce(body->>'display_name',''))='' or length(coalesce(body->>'password',''))<12
   or octet_length(body->>'password')>72 or body->>'role' not in ('admin','digitador') then raise exception 'Revise los datos. La contraseña debe tener al menos 12 caracteres y hasta 72 bytes.'; end if;
-  insert into admission_private.users(username,display_name,password_hash,role) values(trim(body->>'username'),trim(body->>'display_name'),extensions.crypt(body->>'password',extensions.gen_salt('bf',12)),body->>'role');
+  if nullif(trim(body->>'email'),'') is not null and (length(body->>'email')>254 or trim(body->>'email') !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$') then raise exception 'Revise el correo electrónico.'; end if;
+  insert into admission_private.users(username,display_name,password_hash,role,email) values(trim(body->>'username'),trim(body->>'display_name'),extensions.crypt(body->>'password',extensions.gen_salt('bf',12)),body->>'role',lower(nullif(trim(body->>'email'),'')));
   perform admission_private.log_event(u.id,'USUARIO_CREADO',null,jsonb_build_object('username',body->>'username','role',body->>'role')); return '{"ok":true}';
+ end if;
+ if path ~ '^/api/admin/users/[0-9]+/email$' and method='PUT' then
+  if length(coalesce(body->>'email',''))>254 or trim(coalesce(body->>'email','')) !~ '^[^[:space:]@]+@[^[:space:]@]+\.[^[:space:]@]+$' then raise exception 'Revise el correo electrónico.'; end if;
+  sid:=split_part(path,'/',5)::bigint;
+  update admission_private.users set email=lower(trim(body->>'email')),recovery_auth_id=null where id=sid and email is distinct from lower(trim(body->>'email'));
+  if not exists(select 1 from admission_private.users where id=sid) then raise exception 'Usuario no encontrado.'; end if;
+  delete from admission_private.password_recovery_pending where user_id=sid;
+  perform admission_private.log_event(u.id,'CORREO_RECUPERACION_ACTUALIZADO',null,jsonb_build_object('user_id',sid));
+  return '{"ok":true}';
  end if;
  if path='/api/admin/audit' and method='GET' then return jsonb_build_object('rows',(select coalesce(jsonb_agg(to_jsonb(x) order by id desc),'[]') from (select * from admission_private.audit order by id desc limit 1000) x)); end if;
  if path='/api/admin/import/preview' and method='POST' then

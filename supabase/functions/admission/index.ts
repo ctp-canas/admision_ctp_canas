@@ -1,4 +1,5 @@
 /** Custom opaque sessions are authenticated by admission_api before any private operation. */
+import {passwordRecovery} from './recovery.ts';
 const env = (name: string) => Deno.env.get(name) || '';
 const sha = async (text: string) => Array.from(new Uint8Array(await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text))), b => b.toString(16).padStart(2,'0')).join('');
 const randomToken = () => Array.from(crypto.getRandomValues(new Uint8Array(32)), b => b.toString(16).padStart(2,'0')).join('');
@@ -28,10 +29,16 @@ return async function handler(req: Request): Promise<Response> {
   if(typeof serverKey!=='string'||!serverKey) return new Response('{"error":"El servicio aún no está configurado"}',{status:503,headers});
   const rpcHeaders: Record<string,string>={'Content-Type':'application/json','apikey':serverKey};
   if(!serverKey.startsWith('sb_secret_')) rpcHeaders['Authorization']='Bearer '+serverKey;
+  const ipHash=await sha(req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||'unknown');
+  if(path==='/api/password/request'||path==='/api/password/reset'){
+   if(req.method!=='POST')return new Response('{"error":"Método no permitido"}',{status:405,headers});
+   const result=await passwordRecovery(path,body,env,rpcFetch,rpcHeaders,ipHash);
+   return new Response(JSON.stringify(result.data),{status:result.status,headers});
+  }
   const response=await rpcFetch(env('SUPABASE_URL')+'/rest/v1/rpc/admission_api',{
    method:'POST',headers:rpcHeaders,
    body:JSON.stringify({method:req.method,path,body,session_hash:token?await sha(token):'',
-    ip_hash:await sha(req.headers.get('x-forwarded-for')?.split(',')[0]?.trim()||'unknown'),
+    ip_hash:ipHash,
     backup_key:env('BACKUP_ENCRYPTION_KEY'),login_hash:loginToken?await sha(loginToken):''})
   });
   if(!response.ok) return new Response('{"error":"No fue posible completar la operación. Contacte a la administración."}',{status:503,headers});

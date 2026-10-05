@@ -2,7 +2,7 @@ import {PGlite} from '@electric-sql/pglite';
 import {pgcrypto} from '@electric-sql/pglite/contrib/pgcrypto';
 import {readFile} from 'node:fs/promises';
 import {createHandler} from '../supabase/functions/admission/index.ts';
-export async function localBackend({persist, password, fastHash=false}={}){
+export async function localBackend({persist, password, fastHash=false, authFetch}={}){
  const db=new PGlite({dataDir:persist,extensions:{pgcrypto}});
  if(!(await db.query("select to_regclass('admission_private.config') as present")).rows[0].present){
   await db.exec("create role anon; create role authenticated; create role service_role bypassrls; create schema extensions;");
@@ -13,11 +13,15 @@ export async function localBackend({persist, password, fastHash=false}={}){
   if(password) await db.query('select public.admission_bootstrap($1)',[password]);
  }
  // Applies to existing previews as well as new databases; keeps records and credentials.
+ await db.exec(await readFile(new URL('../supabase/password-recovery.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../supabase/update-public-result.sql',import.meta.url),'utf8'));
  const rpc=async(_url,options)=>{
+  if(_url.includes('/auth/v1/'))return authFetch?authFetch(_url,options):Response.json({error:'Email is unavailable in the local preview'},{status:503});
   try{
    const a=JSON.parse(options.body);
-   const result=await db.query('select public.admission_api($1,$2,$3::jsonb,$4,$5,$6,$7) as result',[a.method,a.path,JSON.stringify(a.body),a.session_hash,a.ip_hash,a.backup_key,a.login_hash]);
+   const result=_url.endsWith('/admission_password_recovery')
+    ?await db.query('select public.admission_password_recovery($1,$2::jsonb,$3) as result',[a.action,JSON.stringify(a.payload),a.ip_hash])
+    :await db.query('select public.admission_api($1,$2,$3::jsonb,$4,$5,$6,$7) as result',[a.method,a.path,JSON.stringify(a.body),a.session_hash,a.ip_hash,a.backup_key,a.login_hash]);
    return Response.json(result.rows[0].result);
   }catch(error){console.error('Error de base de datos en prueba local:',error.message);return Response.json({error:'Database error'},{status:500});}
  };

@@ -65,3 +65,4 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--teal);flex-shrink
 }
 @media(max-width:360px){.brand-header{padding:12px;gap:10px}.crest{width:50px;height:50px}.consultation-heading,.consultation-content{padding:22px 18px}.public-card h2{font-size:1.6rem}.public-main{padding:16px 10px}.stat-card{padding:14px}.chart-context{font-size:.8125rem}}
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
+.password-recovery-link{display:block;margin-top:18px;padding:5px 0;border:0;background:none;color:var(--blue);font:inherit;text-align:left;text-decoration:underline;cursor:pointer}.password-recovery-link:focus-visible{outline:2px solid var(--gold);outline-offset:4px}

@@ -53,7 +53,7 @@ supabase db push
 
 La migración crea `admission_private`, sus tablas con RLS, una vista de cálculo y dos funciones públicas a las que solo `service_role` tiene permiso de ejecución. No exponga el esquema privado en la API.
 
-Después de aplicar la migración, ejecute el contenido de `supabase/update-public-result.sql` desde el SQL Editor del proyecto. Este archivo agrega la nota final a la respuesta individual, conserva los permisos de la función, fija las rutas de búsqueda de las funciones privadas y no elimina registros. También sirve para una base existente de esta versión.
+Después de aplicar la migración, ejecute primero `supabase/password-recovery.sql` y luego `supabase/update-public-result.sql` desde el SQL Editor del proyecto. El primer archivo agrega los campos y controles privados de recuperación. El segundo incluye la nota final en la respuesta individual, la gestión del correo administrativo y las rutas de búsqueda de las funciones privadas. Ambos conservan los registros existentes.
 
 3. Genere una clave aleatoria de al menos 32 caracteres para `BACKUP_ENCRYPTION_KEY`. Guárdela en un lugar institucional seguro; los respaldos no se pueden descifrar sin la misma clave. Puede generar una con `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` y copiarla directamente a la configuración del servidor.
 4. Cree un archivo privado `.env.server` con **solo** estas dos variables y despliegue sus valores:
@@ -97,7 +97,7 @@ La recuperación ante la pérdida completa del proyecto requiere recrear la migr
 
 `npm test` usa datos ficticios y ejecuta el SQL y la misma función HTTP del backend en PostgreSQL local. Verifica permisos, RLS, cálculo de cuatro decimales, bloqueos por sesión, versiones, nulos y cero, empates, renuncia, consulta individual, importación, cifrado, integridad, reinicio, restauración y limitación de intentos. Las pruebas reducen el costo bcrypt únicamente para datos ficticios; la migración desplegada usa costo 12.
 
-La vista previa no demuestra disponibilidad, latencia o cuotas del servicio publicado. Antes de usar datos reales, haga una prueba en el proyecto nuevo con dos usuarios, un XLSX ficticio, fecha de publicación futura y un respaldo descargado/restaurado. Para archivos grandes, divida la importación en lotes pequeños: el cifrado de contraseñas y el límite de tiempo de consultas dependen del plan del servidor. No se incluye matrícula pública ni envío de correo, funciones que no forman parte del proceso solicitado.
+La vista previa no demuestra disponibilidad, latencia o cuotas del servicio publicado. Antes de usar datos reales, haga una prueba en el proyecto nuevo con dos usuarios, un XLSX ficticio, fecha de publicación futura y un respaldo descargado/restaurado. Para archivos grandes, divida la importación en lotes pequeños: el cifrado de contraseñas y el límite de tiempo de consultas dependen del plan del servidor. No se incluye matrícula pública. El correo se utiliza únicamente para la recuperación administrativa descrita más adelante.
 
 Fuentes oficiales: [GitHub Pages y flujos](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages), [despliegue de funciones](https://supabase.com/docs/guides/functions/deploy), [variables de servidor](https://supabase.com/docs/guides/functions/secrets). Las bibliotecas para ZIP y PDF están vendorizadas; sus licencias se incluyen en `public/vendor/`.
 
@@ -109,8 +109,27 @@ La interfaz utiliza la paleta del escudo institucional y adapta la consulta indi
 
 La consulta muestra «Nota final de admisión», cuatro decimales y «Sobre 100 puntos» para admitidos y no admitidos. Usa el resultado oficial del promedio ponderado 60/40, sin recalcularlo en el navegador. Una nota de cero se muestra como `0,0000`. Los pendientes y las renuncias conservan su mensaje de estado.
 
-Para actualizar una vista previa existente: detenga el servidor con Ctrl+C, extraiga el paquete en otra carpeta y copie `public`, `backend/local.mjs` y `supabase/update-public-result.sql` sobre los mismos elementos de su instalación. Conserve la carpeta `data`. Ejecute `npm.cmd run preview` y recargue con Ctrl+F5. Al arrancar, el servidor aplica la actualización a la base local conservando estudiantes, notas, configuración y credenciales.
+Para actualizar una vista previa existente: detenga el servidor con Ctrl+C, extraiga el paquete en otra carpeta y copie `public`, `backend/local.mjs`, `supabase/update-public-result.sql`, `supabase/password-recovery.sql` y `supabase/functions/admission` sobre los mismos elementos de su instalación. Conserve la carpeta `data`. Ejecute `npm.cmd run preview` y recargue con Ctrl+F5. Al arrancar, el servidor aplica la actualización a la base local conservando estudiantes, notas, configuración y credenciales.
 
 Los encabezados de los informes PDF están centrados en todas las páginas.
 
 Para actualizar una vista previa existente, detenga el servidor, reemplace la carpeta `public` y el archivo `scripts/preview.mjs` por los del paquete actualizado, conserve la carpeta `data` y reinicie la vista previa. Recargue el navegador con Ctrl+F5 para cargar los nuevos estilos y scripts.
+
+## Recuperación de contraseña administrativa
+
+En `admin-login.html`, **¿Olvidó su contraseña?** solicita el usuario y el correo registrado. El enlace recibido abre el formulario de contraseña nueva. La contraseña debe tener al menos 12 caracteres y hasta 72 bytes. La solicitud vence a los 30 minutos; después de guardar, se cierran todas las sesiones administrativas de esa cuenta y el enlace no puede reutilizarse.
+
+Antes de enviar correos, configure **Supabase → Authentication → URL Configuration**:
+
+- **Site URL:** `https://ctp-canas.github.io/admision_ctp_canas/`
+- **Redirect URLs:** agregue `https://ctp-canas.github.io/admision_ctp_canas/admin-login.html?recover=1`
+
+El servidor verifica la URL permitida antes de enviar el correo; si el proyecto conserva `localhost`, informa el ajuste pendiente. Para otra dirección de sitio, configure `RECOVERY_REDIRECT_URL` únicamente en el servidor y permita esa misma dirección en Supabase.
+
+El administrador principal puede registrar o cambiar el correo desde **Usuarios → Cambiar correo**, o incluirlo al crear una cuenta. El correo es exclusivo de cada cuenta. Cambiarlo invalida la solicitud anterior. Nunca se escribe un correo personal ni una contraseña real en el repositorio.
+
+Supabase Auth se utiliza para verificar la propiedad del correo con una identidad auxiliar de contraseña aleatoria. El servidor valida el JWT con Auth, exige el método firmado `recovery` y comprueba que la identidad corresponda al usuario privado activo y a una solicitud vigente. No utiliza `user_metadata` para autorizar. El ingreso administrativo mantiene sus sesiones opacas y sus hashes bcrypt existentes. Solo `service_role` puede ejecutar el RPC de recuperación; el navegador nunca recibe una clave de servidor, una contraseña almacenada ni el identificador interno de Auth. Los tokens del enlace se mantienen en memoria y se eliminan de la URL inmediatamente.
+
+El correo predeterminado de Supabase solo admite direcciones de miembros del equipo del proyecto y tiene un límite de dos mensajes por hora. Para otros administradores o envíos de producción, configure **Authentication → Emails → SMTP Settings** con el servicio de correo institucional. La vista previa local no envía correos; las pruebas utilizan un proveedor simulado y registros ficticios.
+
+Documentación: [recuperación por correo](https://supabase.com/docs/reference/javascript/auth-resetpasswordforemail), [direcciones de retorno](https://supabase.com/docs/guides/auth/redirect-urls) y [SMTP](https://supabase.com/docs/guides/auth/auth-smtp).

@@ -1,6 +1,6 @@
 # Verificación y estado de entrega
 
-Se completaron 15 pruebas automatizadas y la compilación para GitHub Pages. Las pruebas en navegador verificaron formularios, navegación por teclado, cálculo con cuatro decimales, importación XLSX, PDF con fuentes incorporadas, bloqueo entre sesiones, consulta individual, escape de contenido y presentación móvil. También se generó un PDF de 55 registros para verificar su paginación.
+Se completaron 19 pruebas automatizadas y la compilación para GitHub Pages. Las pruebas en navegador verificaron formularios, navegación por teclado, cálculo con cuatro decimales, importación XLSX, PDF con fuentes incorporadas, bloqueo entre sesiones, consulta individual, escape de contenido y presentación móvil. También se generó un PDF de 55 registros para verificar su paginación.
 
 ## Configuración de producción — 1 de octubre de 2026
 
@@ -36,6 +36,14 @@ La consulta incluye la nota final sobre 100 y cuatro decimales para admitidos y 
 
 Las pruebas comprueban notas de 0,0000 y 100,0000, el resultado ponderado 86,2149, ambas condiciones de admisión, bloqueo antes de la fecha de publicación y rechazo de credenciales incorrectas. Una prueba recrea la función anterior en una base persistente, reinicia la vista previa y confirma que la actualización conserva los tres expedientes, sus notas, decisiones y la contraseña administrativa anterior. También confirma que un segundo reinicio conserva los datos y los permisos privados.
 
-Para actualizar su vista previa: detenga el servidor, copie `public`, `backend/local.mjs` y `supabase/update-public-result.sql` del paquete sobre los mismos elementos de su instalación, y reinicie con `npm.cmd run preview`. Conserve `data` y recargue con Ctrl+F5. En Supabase se aplica `supabase/update-public-result.sql` después de la migración inicial, según las instrucciones del README. La API de producción incluye esta actualización; la disponibilidad del sitio se comprueba después de ejecutar el flujo de GitHub Pages.
+Para actualizar su vista previa: detenga el servidor, copie `public`, `backend/local.mjs`, `supabase/update-public-result.sql`, `supabase/password-recovery.sql` y `supabase/functions/admission` del paquete sobre los mismos elementos de su instalación, y reinicie con `npm.cmd run preview`. Conserve `data` y recargue con Ctrl+F5. En Supabase se aplica `supabase/update-public-result.sql` después de la migración inicial, según las instrucciones del README. La API de producción incluye esta actualización; la disponibilidad del sitio se comprueba después de ejecutar el flujo de GitHub Pages.
 
 La interacción de la consulta se verificó mediante pruebas del código del formulario: ambas condiciones, cero, máximo, cuatro decimales, limpieza de contraseña, foco en el resultado y escape de contenido. No fue posible repetir la revisión visual en navegador de esta actualización, porque el navegador de pruebas no está disponible en este entorno y su descarga falló. Las verificaciones visuales anteriores corresponden al diseño previo a la incorporación de la nota.
+
+## Recuperación administrativa por correo — 5 de octubre de 2026
+
+Pasaron 19 pruebas: autenticación y permisos existentes, recuperación con correo coincidente, respuesta genérica para cuentas desconocidas, rechazo de JWT sin el método `recovery`, contraseña mínima, vencimiento, uso único, rechazo de reutilización incluso después de una nueva solicitud, cierre de sesiones anteriores y acceso con la contraseña nueva. Se comprueba además que una dirección de retorno no permitida impida enviar enlaces a `localhost`, y que un fallo de envío elimine la solicitud pendiente. El formulario elimina el token de la URL antes de llamar a la API, valida la confirmación y vuelve al ingreso al finalizar.
+
+La base de producción conserva su cuenta administrativa y sus registros; se añadieron los campos de correo, la identidad auxiliar de Auth y dos tablas privadas con RLS. El RPC nuevo no tiene permiso de ejecución para `anon` ni `authenticated`. La revisión de seguridad no reportó advertencias ni errores; el aviso informativo de RLS sin políticas corresponde al esquema privado, reservado al servidor.
+
+En producción se verificaron: consulta pública HTTP 200, usuarios sin sesión HTTP 401 y rechazo de un enlace de recuperación inválido HTTP 401. La cuenta inicial tiene su correo de recuperación registrado y su identidad auxiliar vinculada. El envío quedó pendiente de permitir la dirección de retorno en Authentication → URL Configuration; no se envió un enlace roto ni se cambió la contraseña real durante la verificación.

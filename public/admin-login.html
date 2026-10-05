@@ -1,3 +1,25 @@
 <!doctype html>
-<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Acceso administrativo - CTP Cañas</title><link rel="icon" href="assets/admision-favicon.ico?v=20261005" sizes="16x16 32x32 48x48"><link rel="icon" type="image/png" href="assets/admision-favicon-32.png?v=20261005" sizes="32x32"><link rel="icon" type="image/png" href="assets/admision-icono.png?v=20261005" sizes="512x512"><link rel="apple-touch-icon" href="assets/admision-apple-touch.png?v=20261005" sizes="180x180"><link rel="stylesheet" href="styles.css"></head>
-<body><div class="login-page"><section class="login-panel"><img src="assets/logo-mep.png" alt="MEP"><h1>Área Administrativa</h1><p class="muted">Proceso de Admisión a Sétimo Año · CTP Cañas</p><form id="loginForm"><div class="field"><label for="username">Usuario</label><input id="username" autocomplete="username" required></div><div class="field"><label for="password">Contraseña</label><input id="password" type="password" autocomplete="current-password" required></div><button class="btn btn-primary btn-block">Ingresar</button><div id="msg" aria-live="polite"></div></form><p style="margin-top:22px"><a href="index.html">← Volver a consulta de resultados</a></p></section><aside class="login-visual"><div class="visual-card"><img src="assets/escudo-ctp.jpeg" style="width:125px;height:125px;object-fit:contain;background:#fff;border-radius:18px;padding:7px" alt="CTP Cañas"><h2>Gestión segura del proceso de admisión</h2><p>Registro académico, prueba de admisión, ranking con cuatro decimales, publicación de resultados, auditoría y respaldo institucional en un único sistema.</p></div></aside></div><script src="config.js"></script><script src="api.js"></script><script src="login.js"></script></body></html>
+<html lang="es"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Acceso administrativo - CTP Cañas</title><link rel="icon" href="assets/admision-favicon.ico?v=20261005" sizes="16x16 32x32 48x48"><link rel="icon" type="image/png" href="assets/admision-favicon-32.png?v=20261005" sizes="32x32"><link rel="icon" type="image/png" href="assets/admision-icono.png?v=20261005" sizes="512x512"><link rel="apple-touch-icon" href="assets/admision-apple-touch.png?v=20261005" sizes="180x180"><link rel="stylesheet" href="styles.css?v=20261005-recovery"></head>
+<body><div class="login-page"><section class="login-panel"><img src="assets/logo-mep.png" alt="MEP"><h1 id="loginHeading">Área Administrativa</h1><p id="loginIntro" class="muted">Proceso de Admisión a Sétimo Año · CTP Cañas</p><form id="loginForm"><div class="field"><label for="username">Usuario</label><input id="username" autocomplete="username" required></div><div class="field"><label for="password">Contraseña</label><input id="password" type="password" autocomplete="current-password" required></div><button class="btn btn-primary btn-block">Ingresar</button><div id="msg" aria-live="polite"></div></form>
+<button id="forgotPassword" type="button" class="password-recovery-link">¿Olvidó su contraseña?</button>
+<section id="recoveryPanel" hidden>
+ <form id="recoveryForm">
+  <div class="field"><label for="recoveryUsername">Usuario administrativo</label><input id="recoveryUsername" autocomplete="username" maxlength="100" required></div>
+  <div class="field"><label for="recoveryEmail">Correo registrado</label><input id="recoveryEmail" type="email" autocomplete="email" maxlength="254" required></div>
+  <p class="small muted">Recibirá un enlace de uso único. Complete el cambio dentro de los 30 minutos siguientes a la solicitud.</p>
+  <button class="btn btn-primary btn-block">Enviar enlace de recuperación</button>
+  <div id="recoveryMsg" aria-live="polite"></div>
+ </form>
+ <button id="backToLogin" type="button" class="password-recovery-link">← Volver al acceso administrativo</button>
+</section>
+<section id="resetPanel" hidden>
+ <form id="resetForm">
+  <div class="field"><label for="newPassword">Contraseña nueva</label><input id="newPassword" type="password" autocomplete="new-password" minlength="12" maxlength="72" required aria-describedby="passwordHint"></div>
+  <div class="field"><label for="confirmPassword">Confirmar contraseña nueva</label><input id="confirmPassword" type="password" autocomplete="new-password" minlength="12" maxlength="72" required></div>
+  <p id="passwordHint" class="small muted">Use al menos 12 caracteres. Se recomienda combinar letras, números y símbolos. Al guardar, se cerrarán las sesiones anteriores de esta cuenta.</p>
+  <button class="btn btn-primary btn-block">Guardar contraseña nueva</button>
+  <div id="resetMsg" aria-live="polite"></div>
+ </form>
+ <button id="resetBackToLogin" type="button" class="password-recovery-link">← Volver al acceso administrativo</button>
+</section>
+<p style="margin-top:22px"><a href="index.html">← Volver a consulta de resultados</a></p></section><aside class="login-visual"><div class="visual-card"><img src="assets/escudo-ctp.jpeg" style="width:125px;height:125px;object-fit:contain;background:#fff;border-radius:18px;padding:7px" alt="CTP Cañas"><h2>Gestión segura del proceso de admisión</h2><p>Registro académico, prueba de admisión, ranking con cuatro decimales, publicación de resultados, auditoría y respaldo institucional en un único sistema.</p></div></aside></div><script src="config.js"></script><script src="api.js"></script><script src="login.js?v=20261005-recovery"></script></body></html>
