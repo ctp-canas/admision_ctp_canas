@@ -3,7 +3,7 @@ async function createReport(data,{forceDraft=false}={}){
  const pdf=await PDFDocument.create();pdf.registerFontkit(fontkit);
  const [regular,boldBytes]=await Promise.all(['assets/fonts/Vera.ttf','assets/fonts/VeraBd.ttf'].map(p=>fetch(p).then(r=>r.arrayBuffer())));
  const font=await pdf.embedFont(regular,{subset:true}),bold=await pdf.embedFont(boldBytes,{subset:true});
- const header=await pdf.embedPng(await fetch('assets/encabezado-institucional.png').then(r=>r.arrayBuffer()));
+ const header=await pdf.embedPng(await fetch('assets/encabezado-institucional.png?v=20261005').then(r=>r.arrayBuffer()));
  const draft=forceDraft||data.draft,W=792,H=612,M=26,navy=rgb(.07,.25,.27),gray=rgb(.35,.44,.46),line=rgb(.82,.88,.86),gold=rgb(.74,.57,.19);
  let page,y;const pages=[];
  const plain=value=>String(value??'-').replace(/[\r\n]/g,' ').replace(/[^\x20-\x7e\xa0-\xff]/g,'-');
