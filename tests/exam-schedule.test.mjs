@@ -86,6 +86,28 @@ test('exam scheduling, attendance privacy, concurrent edits and backups',async t
    token=(await request('/api/login',{method:'POST',body:{username:'Admi2026',password},session:''})).data.token;
    assert.equal((await schedule()).summary.unassigned,3);assert.ok((await schedule()).rows.every(s=>s.version===0));
   });
+  await t.test('exceptional appointments require a valid reason and time, move the signature list and survive backup/restore',async()=>{
+   let d=await schedule(),first=d.rows[0],other=d.rows[1];
+   const custom=(rows,changes={})=>request('/api/admin/exam-schedule',{method:'PUT',body:{students:rows.map(r=>({id:r.id,version:r.version})),mode:'custom',date:'2026-11-03',block:null,start:'09:15',end:'11:15',reason:'Cita médica justificada por la persona encargada.',...changes}});
+   for(const changes of [{reason:''},{reason:'abc'},{start:'09:00',end:'08:00'},{start:'25:00'},{date:'2026-02-30'},{date:''},{end:''},{block:1}])assert.equal((await custom([first],changes)).status,400,JSON.stringify(changes));
+   assert.equal((await assign([first,other],'2026-10-27',1)).status,200);
+   d=await schedule();first=d.rows.find(r=>r.id===first.id);other=d.rows.find(r=>r.id===other.id);
+   assert.equal((await custom([first])).status,200);
+   d=await schedule();const special=d.rows.find(r=>r.id===first.id);assert.equal(special.kind,'custom');assert.equal(special.start,'09:15');assert.equal(special.end,'11:15');assert.ok(special.reason.includes('Cita médica'));assert.equal(d.summary.reprogrammed,1);assert.equal(d.custom_slots.length,1);assert.ok(d.dates.includes('2026-11-03'));assert.equal(d.regular_dates.length,3);
+   const oldList=(await request('/api/admin/exam-attendance?date=2026-10-27&block=1')).data.groups[0].rows;
+   assert.deepEqual(oldList.map(r=>r.identification),[other.identification]);
+   const newList=(await request('/api/admin/exam-attendance?date=2026-11-03&block=custom')).data;
+   assert.equal(newList.groups.length,1);assert.equal(newList.groups[0].time_label,'9:15 a.m. a 11:15 a.m.');assert.deepEqual(newList.groups[0].rows.map(r=>r.identification),[first.identification]);assert.equal(newList.groups[0].rows[0].reason,undefined);
+   const all=(await request('/api/admin/exam-attendance')).data;assert.equal(all.groups.length,10);assert.equal(all.groups.flatMap(g=>g.rows).filter(r=>r.identification===first.identification).length,1);
+   assert.equal((await custom([first,other],{date:'2026-11-04'})).status,409);assert.equal((await schedule()).rows.find(r=>r.id===other.id).date,'2026-10-27');
+   const audit=(await request('/api/admin/audit')).data.rows.find(r=>r.action==='PRUEBA_REPROGRAMADA');assert.equal(audit.detail_json.previous_date,'2026-10-27');assert.equal(audit.detail_json.reason,special.reason);
+   const savedId=(await request('/api/admin/backup/create',{method:'POST',body:{}})).data.id,saved=(await request('/api/admin/backup/download?id='+savedId)).data;
+   assert.equal((await assign([special],null,null)).status,200);
+   const cleared=(await schedule()).rows.find(r=>r.id===special.id);assert.equal(cleared.reason,'');assert.equal(cleared.start,null);assert.equal(cleared.end,null);
+   assert.equal((await request('/api/admin/restore',{method:'POST',body:{payload:saved.payload,sha256:saved.manifest.sha256,confirmation:'RESTAURAR'}})).status,200);
+   token=(await request('/api/login',{method:'POST',body:{username:'Admi2026',password},session:''})).data.token;
+   const restored=(await schedule()).rows.find(r=>r.id===special.id);assert.deepEqual([restored.date,restored.start,restored.end,restored.reason,restored.version],[special.date,special.start,special.end,special.reason,special.version]);
+  });
   await t.test('annual reset removes appointments and prepares the three dates for the new cycle',async()=>{
    assert.equal((await request('/api/admin/reset-cycle',{method:'POST',body:{new_year:'2028',slots:'150',publication_at:'2027-12-01T08:00:00-06:00',admitted_instructions:'Matrícula',confirmation:'REINICIAR 2027'}})).status,200);
    const d=await schedule();assert.equal(d.rows.length,0);assert.deepEqual(d.dates,['2027-10-27','2027-10-28','2027-10-29']);

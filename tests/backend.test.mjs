@@ -10,7 +10,7 @@ async function request(path,{method='GET',body,token=principal}={}){
 }
 const post=(p,b,t)=>request(p,{method:'POST',body:b,token:t});
 const put=(p,b,t)=>request(p,{method:'PUT',body:b,token:t});
-const keys=['g4_math','g4_science','g4_spanish','g4_social','g4_conduct','g5_math','g5_science','g5_spanish','g5_social','g5_conduct','g6_math','g6_science','g6_spanish','g6_social','g6_conduct'];
+const keys=['g4_p1','g4_p2','g5_p1','g5_p2','g6_p1'].flatMap(prefix=>['math','science','spanish','social','conduct'].map(subject=>prefix+'_'+subject));
 const grades=v=>Object.fromEntries(keys.map(k=>[k,v]));
 async function student(id,name,avg,exam){
  const created=await post('/api/admin/students',{identification:id,first_name:name,last_name1:'Prueba',last_name2:'',password:'AB12CD'});
@@ -55,9 +55,9 @@ test('admissions backend, transactions and permissions',async t=>{
   const other=await student('0008','Otro');assert.equal((await post('/api/admin/locks/acquire',{student_id:other},second)).status,200);
   assert.equal((await put(`/api/admin/students/${studentId}/grades`,{version:0,grades:grades('90')})).status,409);
   const d=await request(`/api/admin/students/${studentId}/academic`);
-  const partial=grades(null);partial.g4_math='0';
+  const partial=grades(null);partial.g4_p1_math='0';
   assert.equal((await put(`/api/admin/students/${studentId}/grades`,{version:d.version,grades:partial})).status,200);
-  const saved=await request(`/api/admin/students/${studentId}/academic`);assert.equal(saved.grades.g4_math,'0.0000');assert.equal(saved.grades.g4_science,null);assert.equal(saved.result.final_score,null);
+  const saved=await request(`/api/admin/students/${studentId}/academic`);assert.equal(saved.grades.g4_p1_math,'0.0000');assert.equal(saved.grades.g4_p1_science,null);assert.equal(saved.result.final_score,null);
   assert.equal((await put(`/api/admin/students/${studentId}/grades`,{version:saved.version,grades:grades('90')})).status,409);
   await post('/api/admin/locks/acquire',{student_id:studentId});
   await db.query("update admission_private.locks set expires_at=now()-interval '1 minute' where student_id=$1",[studentId]);

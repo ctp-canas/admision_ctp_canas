@@ -112,7 +112,8 @@ begin
   foreach k in array admission_private.grade_keys() loop
    g:=g||jsonb_build_object(k,case when s.grades->>k is not null then to_char((s.grades->>k)::numeric,'FM990.0000') end);
   end loop;
-  return jsonb_build_object('student',admission_private.student_json(rec),'grades',g,'version',s.version,
+  return jsonb_build_object('student',admission_private.student_json(rec),'grades',g,
+  'legacy_grades',s.grades-admission_private.grade_keys(),'version',s.version,
   'exam',case when s.exam is not null then to_char(s.exam,'FM990.0000') end,
   'result',jsonb_build_object('academic_avg',rec.academic_avg_display,'academic_component',rec.academic_component_display,
   'exam_component',rec.exam_component_display,'final_score',rec.final_display,'position',rec.position,'status',rec.status));
@@ -137,7 +138,11 @@ begin
   if path like '%/grades' then
    if not exists(select 1 from admission_private.locks l where l.student_id=sid and l.session_hash=admission_api.session_hash and expires_at>now()) then
     return '{"_status":409,"error":"El permiso de edición venció. Vuelva a abrir el expediente."}'; end if;
-   g:='{}'; foreach k in array admission_private.grade_keys() loop g:=g||jsonb_build_object(k,admission_private.score(body->'grades'->>k)); end loop;
+   if jsonb_typeof(body->'grades') is distinct from 'object' then raise exception 'Revise las calificaciones por período.'; end if;
+   if exists(select 1 from jsonb_object_keys(body->'grades') key where not key=any(admission_private.grade_keys())) then
+    raise exception 'El formulario de notas está desactualizado. Recargue con Ctrl+F5 e ingrese I y II período.';
+   end if;
+   g:=s.grades-admission_private.grade_keys(); foreach k in array admission_private.grade_keys() loop g:=g||jsonb_build_object(k,admission_private.score(body->'grades'->>k)); end loop;
    update admission_private.students set grades=g where id=sid;
    delete from admission_private.locks where student_id=sid;
   else update admission_private.students set exam=admission_private.score(body->>'score') where id=sid; end if;
@@ -266,8 +271,9 @@ begin
   insert into admission_private.users select * from jsonb_populate_recordset(null::admission_private.users,snap->'users');
   -- Older backups have no schedule version; their students restore as unassigned.
   insert into admission_private.students select * from jsonb_populate_recordset(
-   jsonb_populate_record(null::admission_private.students,'{"exam_schedule_version":0}'::jsonb),snap->'students');
+   jsonb_populate_record(null::admission_private.students,'{"exam_schedule_version":0,"exam_reschedule_reason":""}'::jsonb),snap->'students');
   update admission_private.config set data=snap->'config' where id=1;
+  perform admission_private.sync_period_model();
   -- Keep the audit trail of the state being replaced and incorporate missing restored entries.
   insert into admission_private.audit select * from jsonb_populate_recordset(null::admission_private.audit,snap->'audit') on conflict(id) do nothing;
   perform setval(pg_get_serial_sequence('admission_private.students','id'),coalesce((select max(id) from admission_private.students),1),exists(select 1 from admission_private.students));

@@ -11,7 +11,7 @@ La dirección de API es `https://jeisglrbvenpqrofhnny.supabase.co/functions/v1/a
 - Consulta individual mediante identificación y contraseña, habilitada automáticamente en la fecha y hora de Costa Rica configuradas. Los admitidos y no admitidos ven su nota final sobre 100 con cuatro decimales, calculada en el servidor.
 - Registro y modificación de estudiantes; contraseña de seis caracteres A-Z y 0-9; almacenamiento exclusivo de hashes bcrypt.
 - Importación XLSX con encabezados exactos, identificación y contraseña como texto, vista previa, errores por fila, descarga de errores y confirmación sin sobrescribir duplicados.
-- Récord académico de 15 notas, guardado parcial y navegación con Tab. Las casillas vacías permanecen nulas; cero es una nota válida.
+- Récord académico de 25 notas por período, guardado parcial y navegación con Tab. Las casillas vacías permanecen nulas; cero es una nota válida.
 - Prueba de admisión; promedio y aportes 60/40 con cuatro decimales calculados en PostgreSQL.
 - Horarios de admisión: asignación individual o múltiple para el 27, 28 y 29 de octubre, tres bloques por día y listas PDF de asistencia con espacio para firma.
 - Ranking, cupos y empates en el punto de corte: orden alfabético, todos los empatados, selección manual justificada o decisión pendiente.
@@ -54,7 +54,7 @@ supabase db push
 
 La migración crea `admission_private`, sus tablas con RLS, una vista de cálculo y dos funciones públicas a las que solo `service_role` tiene permiso de ejecución. No exponga el esquema privado en la API.
 
-Después de aplicar la migración, ejecute `supabase/password-recovery.sql`, `supabase/exam-schedule.sql` y, al final, `supabase/update-public-result.sql` desde el SQL Editor del proyecto. Agregan la recuperación administrativa, los horarios de admisión y las rutas del servidor, respectivamente. Conservan los registros existentes; los estudiantes actuales quedan inicialmente sin horario asignado.
+Después de aplicar la migración, ejecute `supabase/password-recovery.sql`, `supabase/period-grades.sql`, `supabase/exam-schedule.sql` y, al final, `supabase/update-public-result.sql` desde el SQL Editor del proyecto. Agregan la recuperación administrativa, el cálculo por período, los horarios de admisión y las rutas del servidor, respectivamente. Conservan los registros existentes; los estudiantes actuales quedan inicialmente sin horario asignado.
 
 3. Genere una clave aleatoria de al menos 32 caracteres para `BACKUP_ENCRYPTION_KEY`. Guárdela en un lugar institucional seguro; los respaldos no se pueden descifrar sin la misma clave. Puede generar una con `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` y copiarla directamente a la configuración del servidor.
 4. Cree un archivo privado `.env.server` con **solo** estas dos variables y despliegue sus valores:
@@ -110,7 +110,7 @@ La interfaz utiliza la paleta del escudo institucional y adapta la consulta indi
 
 La consulta muestra «Nota final de admisión», cuatro decimales y «Sobre 100 puntos» para admitidos y no admitidos. Usa el resultado oficial del promedio ponderado 60/40, sin recalcularlo en el navegador. Una nota de cero se muestra como `0,0000`. Los pendientes y las renuncias conservan su mensaje de estado.
 
-Para actualizar una vista previa existente: detenga el servidor con Ctrl+C, extraiga el paquete en otra carpeta y copie `public`, `backend/local.mjs`, `supabase/update-public-result.sql`, `supabase/password-recovery.sql`, `supabase/exam-schedule.sql` y `supabase/functions/admission` sobre los mismos elementos de su instalación. Conserve la carpeta `data`. Ejecute `npm.cmd run preview` y recargue con Ctrl+F5. Al arrancar, el servidor aplica la actualización a la base local conservando estudiantes, notas, configuración y credenciales.
+Para actualizar una vista previa existente: detenga el servidor con Ctrl+C, extraiga el paquete en otra carpeta y copie `public`, `backend/local.mjs`, `supabase/update-public-result.sql`, `supabase/password-recovery.sql`, `supabase/period-grades.sql`, `supabase/exam-schedule.sql` y `supabase/functions/admission` sobre los mismos elementos de su instalación. Conserve la carpeta `data`. Ejecute `npm.cmd run preview` y recargue con Ctrl+F5. Al arrancar, el servidor aplica la actualización a la base local conservando estudiantes, notas, configuración y credenciales.
 
 Los encabezados de los informes PDF están centrados en todas las páginas.
 
@@ -141,8 +141,18 @@ En **Horarios de admisión**, asigne a cada estudiante una fecha y un bloque. Pu
 
 Para el ingreso de 2027, las fechas son el 27, 28 y 29 de octubre de 2026. Los bloques son 8:00 a.m.–10:00 a.m., 11:00 a.m.–1:00 p.m. y 2:00 p.m.–4:00 p.m., hora de Costa Rica. Las fechas corresponden a octubre del año anterior al ciclo activo y se renuevan tras reiniciar el ciclo.
 
-Seleccione una fecha y un bloque y pulse **Imprimir listas (PDF)**. Con todos los bloques se generan tres listas para la fecha elegida; con todos los días y bloques, nueve listas. Cada bloque empieza en una página nueva. Las listas ordenan por apellidos y nombre, repiten el encabezado institucional, la fecha, el bloque y el horario, y tienen identificación, nombre completo, firma del estudiante, espacio para la persona aplicadora y número de página. El PDF incluye todos los estudiantes del día/bloque seleccionado: la búsqueda y el filtro de asignación afectan únicamente la tabla de trabajo.
+Seleccione una fecha y un bloque y pulse **Imprimir listas (PDF)**. Con todos los bloques se generan tres listas para la fecha elegida; con todos los días y bloques, las nueve listas regulares más las correspondientes a horarios reprogramados. Cada bloque empieza en una página nueva. Las listas ordenan por apellidos y nombre, repiten el encabezado institucional, la fecha, el bloque y el horario, y tienen identificación, nombre completo, firma del estudiante, espacio para la persona aplicadora y número de página. El PDF incluye todos los estudiantes del día/bloque seleccionado: la búsqueda y el filtro de asignación afectan únicamente la tabla de trabajo.
 
 El control de versión de los horarios es independiente de las notas. Un cambio concurrente rechaza toda la selección, sin guardar parcialmente; pulse **Actualizar lista** antes de volver a asignar. Programar una prueba conserva las notas, el ranking y el corte. Los respaldos completos incorporan automáticamente los horarios; los respaldos anteriores se restauran con estudiantes sin asignación. El reinicio del ciclo elimina los horarios junto con los estudiantes.
 
 Rutas autenticadas: `GET/PUT /api/admin/exam-schedule` y `GET /api/admin/exam-attendance?date=2026-10-27&block=1`. El esquema privado y sus funciones siguen inaccesibles para `anon` y `authenticated`; solo el servidor puede ejecutarlos. El gateway existente atiende estas rutas sin cambiar la Edge Function.
+
+## Notas por período y reprogramaciones — 15 de octubre de 2026
+
+El récord académico tiene cinco filas: cuarto I, cuarto II, quinto I, quinto II y sexto I. Cada fila contiene Matemática, Ciencias, Español, Estudios Sociales y Conducta. El promedio de presentación es la suma de las **25 notas dividida entre 25**, con cuatro decimales. Se requiere completar las 25 para obtener el promedio; una casilla vacía mantiene el expediente pendiente y una nota cero es válida. La nota de admisión conserva el 60 % de presentación y 40 % de prueba, con redondeo de cada componente a cuatro decimales. Guardar notas invalida el corte anterior para que se revise antes de publicar resultados.
+
+Las notas del formato anterior se conservan como referencias en el JSON original y pueden consultarse en el expediente. No se duplican ni se convierten en calificaciones de períodos; no participan del cálculo nuevo. Al restaurar un respaldo anterior con notas anuales, el corte se invalida y deben ingresarse los períodos reales. El servidor rechaza formularios antiguos que intenten guardar las claves anuales: recargue con Ctrl+F5.
+
+En **Horarios de admisión → Asignar/Cambiar**, el tipo **Reprogramación: otra fecha y hora** habilita una fecha libre, hora de inicio, hora de finalización y motivo obligatorio de 5 a 2000 caracteres. Cambiar la hora de inicio propone dos horas de duración; puede ajustar la finalización. Se usan fechas y horas locales de Costa Rica, sin convertirlas a la zona del equipo. Se puede asignar individualmente o a una selección.
+
+La tabla muestra el nuevo horario y el motivo. La auditoría conserva el horario y motivo anteriores junto con los nuevos. Al reprogramar, el estudiante sale de su lista anterior y aparece una sola vez en la lista del nuevo horario. El filtro **Horarios reprogramados** permite imprimir estas listas, agrupadas por fecha, inicio y finalización. Los motivos se conservan en administración y auditoría; el PDF de asistencia contiene únicamente identificación, nombre y firma. Los respaldos cifrados conservan estos campos y los respaldos anteriores se restauran sin reprogramación.

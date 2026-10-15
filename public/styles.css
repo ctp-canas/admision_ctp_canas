@@ -77,3 +77,5 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--teal);flex-shrink
 .schedule-actions{margin:12px 0;flex-wrap:wrap}.schedule-actions #printAttendance{margin-left:auto}
 #scheduleRows input[type=checkbox],#selectScheduleAll{width:20px;height:20px;cursor:pointer}
 @media(max-width:850px){.schedule-slots{grid-template-columns:1fr}.schedule-actions #printAttendance{margin-left:0}.schedule-filters{grid-template-columns:1fr}}
+
+#assignRegularFields[hidden],#assignCustomFields[hidden]{display:none!important}
