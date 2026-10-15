@@ -67,3 +67,13 @@ input[type=checkbox]{width:18px;height:18px;accent-color:var(--teal);flex-shrink
 @media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important;transition:none!important}}
 .password-recovery-link{display:block;margin-top:18px;padding:5px 0;border:0;background:none;color:var(--blue);font:inherit;text-align:left;text-decoration:underline;cursor:pointer}.password-recovery-link:focus-visible{outline:2px solid var(--gold);outline-offset:4px}
 .login-panel [hidden]{display:none!important}
+
+/* Exam schedule and attendance lists. */
+.schedule-slots{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}
+.schedule-day h4{margin:0 0 12px;color:var(--navy,#123f46)}
+.schedule-slot{display:flex;flex-direction:column;gap:4px;width:100%;text-align:left;padding:12px;margin:0 0 8px;border:1px solid #cbdcd8;border-radius:10px;background:#f4f8f7;color:#123f46;cursor:pointer;font:inherit;font-size:.9rem}
+.schedule-slot:hover,.schedule-slot:focus-visible{background:#e5efec;border-color:#24645c}
+.schedule-slot span:last-child{font-weight:600}
+.schedule-actions{margin:12px 0;flex-wrap:wrap}.schedule-actions #printAttendance{margin-left:auto}
+#scheduleRows input[type=checkbox],#selectScheduleAll{width:20px;height:20px;cursor:pointer}
+@media(max-width:850px){.schedule-slots{grid-template-columns:1fr}.schedule-actions #printAttendance{margin-left:0}.schedule-filters{grid-template-columns:1fr}}

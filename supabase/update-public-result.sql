@@ -61,10 +61,13 @@ begin
  if method not in ('GET','POST','PUT') then return '{"_status":405,"error":"Método no permitido"}'; end if;
  -- Serialize mutations against cut, restore, reset, and concurrent imports.
  if method<>'GET' then perform pg_advisory_xact_lock(202709); end if;
- if u.role='digitador' and (path !~ '^/api/admin/(students|locks|import|stats)' and not (method='GET' and path='/api/admin/ranking')) then
+ if u.role='digitador' and (path !~ '^/api/admin/(students|locks|import|stats|exam-schedule|exam-attendance)' and not (method='GET' and path='/api/admin/ranking')) then
   return '{"_status":403,"error":"No tiene permisos para esta operación"}'; end if;
  if path ~ '^/api/admin/(backup|backups|restore|reset-cycle|users)' and u.role<>'principal' then
   return '{"_status":403,"error":"Se requiere el administrador principal"}'; end if;
+ if path in ('/api/admin/exam-schedule','/api/admin/exam-attendance') then
+  return admission_private.exam_schedule(method,path,body,u.id);
+ end if;
  if path='/api/admin/stats' and method='GET' then
   select jsonb_build_object('registered',count(*),'complete',count(total),'incomplete',count(*)-count(total),
   'admitted',count(*) filter(where status='ADMITIDO'),'not_admitted',count(*) filter(where status='NO_ADMITIDO'),
@@ -261,7 +264,9 @@ begin
   current_uid:=u.id; bk:=admission_private.make_backup('prerestauracion',backup_key,u.id);
   delete from admission_private.sessions; delete from admission_private.imports; delete from admission_private.students; delete from admission_private.users;
   insert into admission_private.users select * from jsonb_populate_recordset(null::admission_private.users,snap->'users');
-  insert into admission_private.students select * from jsonb_populate_recordset(null::admission_private.students,snap->'students');
+  -- Older backups have no schedule version; their students restore as unassigned.
+  insert into admission_private.students select * from jsonb_populate_recordset(
+   jsonb_populate_record(null::admission_private.students,'{"exam_schedule_version":0}'::jsonb),snap->'students');
   update admission_private.config set data=snap->'config' where id=1;
   -- Keep the audit trail of the state being replaced and incorporate missing restored entries.
   insert into admission_private.audit select * from jsonb_populate_recordset(null::admission_private.audit,snap->'audit') on conflict(id) do nothing;
