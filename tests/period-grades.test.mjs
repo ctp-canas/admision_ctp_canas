@@ -43,7 +43,7 @@ test('academic entry renders both periods and sends 25 independent marks includi
  const inputs=keys.map((key,index)=>({dataset:{key},value:index===0?'0':index===1?'':'88',addEventListener(){}}));
  const elements={'#studentTab':{innerHTML:''},'#saveGrades':{focus(){}},'#cancelGrades':{},'#gradeMsg':{innerHTML:''}},requests=[];
  const data={grades:Object.fromEntries(keys.map(k=>[k,null])),legacy_grades:{g4_math:'90'},result:{},version:7};
- const context={currentStudent:{id:1,data,lockOwned:false},gradeHeartbeat:null,$:key=>elements[key],$$:()=>inputs,esc:value=>String(value??''),clearInterval(){},setInterval(){return 1;},setTimeout(){},closeModal(){},async api(path,options){requests.push({path,options});return path.endsWith('/academic')?data:{};}};
+ const context={currentStudent:{id:1,data,lockOwned:false},gradeHeartbeat:null,$:key=>elements[key],$$:()=>inputs,esc:value=>String(value??''),clearInterval(){},setInterval(){return 1;},setTimeout(){},closeModal(){},async refreshStudentProgress(){},async api(path,options){requests.push({path,options});return path.endsWith('/academic')?data:{};}};
  runInNewContext(constants+functions,context);await context.renderAcademic(data);
  assert.ok(elements['#studentTab'].innerHTML.includes('Cuarto año – II período'));assert.ok(elements['#studentTab'].innerHTML.includes('Quinto año – II período'));assert.ok(elements['#studentTab'].innerHTML.includes('Sexto año – I período'));assert.ok(elements['#studentTab'].innerHTML.includes('dividida entre 25'));
  assert.equal((elements['#studentTab'].innerHTML.match(/class="grade-input"/g)||[]).length,25);

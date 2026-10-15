@@ -54,7 +54,7 @@ supabase db push
 
 La migración crea `admission_private`, sus tablas con RLS, una vista de cálculo y dos funciones públicas a las que solo `service_role` tiene permiso de ejecución. No exponga el esquema privado en la API.
 
-Después de aplicar la migración, ejecute `supabase/password-recovery.sql`, `supabase/period-grades.sql`, `supabase/exam-schedule.sql` y, al final, `supabase/update-public-result.sql` desde el SQL Editor del proyecto. Agregan la recuperación administrativa, el cálculo por período, los horarios de admisión y las rutas del servidor, respectivamente. Conservan los registros existentes; los estudiantes actuales quedan inicialmente sin horario asignado.
+Después de aplicar la migración, ejecute `supabase/password-recovery.sql`, `supabase/period-grades.sql`, `supabase/exam-schedule.sql`, `supabase/student-progress.sql` y, al final, `supabase/update-public-result.sql` desde el SQL Editor del proyecto. Agregan la recuperación administrativa, el cálculo por período, los horarios, los indicadores de avance y las rutas del servidor, respectivamente. Conservan los registros existentes; los estudiantes actuales quedan inicialmente sin horario asignado.
 
 3. Genere una clave aleatoria de al menos 32 caracteres para `BACKUP_ENCRYPTION_KEY`. Guárdela en un lugar institucional seguro; los respaldos no se pueden descifrar sin la misma clave. Puede generar una con `node -e "console.log(require('node:crypto').randomBytes(32).toString('hex'))"` y copiarla directamente a la configuración del servidor.
 4. Cree un archivo privado `.env.server` con **solo** estas dos variables y despliegue sus valores:
@@ -110,7 +110,7 @@ La interfaz utiliza la paleta del escudo institucional y adapta la consulta indi
 
 La consulta muestra «Nota final de admisión», cuatro decimales y «Sobre 100 puntos» para admitidos y no admitidos. Usa el resultado oficial del promedio ponderado 60/40, sin recalcularlo en el navegador. Una nota de cero se muestra como `0,0000`. Los pendientes y las renuncias conservan su mensaje de estado.
 
-Para actualizar una vista previa existente: detenga el servidor con Ctrl+C, extraiga el paquete en otra carpeta y copie `public`, `backend/local.mjs`, `supabase/update-public-result.sql`, `supabase/password-recovery.sql`, `supabase/period-grades.sql`, `supabase/exam-schedule.sql` y `supabase/functions/admission` sobre los mismos elementos de su instalación. Conserve la carpeta `data`. Ejecute `npm.cmd run preview` y recargue con Ctrl+F5. Al arrancar, el servidor aplica la actualización a la base local conservando estudiantes, notas, configuración y credenciales.
+Para actualizar una vista previa existente: detenga el servidor con Ctrl+C, extraiga el paquete en otra carpeta y copie `public`, `backend/local.mjs`, `supabase/update-public-result.sql`, `supabase/password-recovery.sql`, `supabase/period-grades.sql`, `supabase/exam-schedule.sql`, `supabase/student-progress.sql` y `supabase/functions/admission` sobre los mismos elementos de su instalación. Conserve la carpeta `data`. Ejecute `npm.cmd run preview` y recargue con Ctrl+F5. Al arrancar, el servidor aplica la actualización a la base local conservando estudiantes, notas, configuración y credenciales.
 
 Los encabezados de los informes PDF están centrados en todas las páginas.
 
@@ -137,7 +137,7 @@ Documentación: [recuperación por correo](https://supabase.com/docs/reference/j
 
 ## Horarios y listas de asistencia
 
-En **Horarios de admisión**, asigne a cada estudiante una fecha y un bloque. Puede usar **Asignar/Cambiar** en una fila o marcar varios estudiantes y pulsar **Asignar seleccionados**. Una asignación nueva sustituye la anterior; no duplica al estudiante. **Quitar asignación** lo devuelve al grupo sin asignar. Los administradores y digitadores tienen acceso; se registran los cambios en la auditoría.
+En **Horarios de admisión**, asigne a cada estudiante una fecha y un bloque. Puede elegirlos directamente en su fila y pulsar **Guardar**, o marcar varios estudiantes, elegir una fecha y un bloque en la parte superior y pulsar **Guardar a seleccionados**. Una asignación nueva sustituye la anterior; no duplica al estudiante. **Quitar asignación** lo devuelve al grupo sin asignar. Los administradores y digitadores tienen acceso; se registran los cambios en la auditoría.
 
 Para el ingreso de 2027, las fechas son el 27, 28 y 29 de octubre de 2026. Los bloques son 8:00 a.m.–10:00 a.m., 11:00 a.m.–1:00 p.m. y 2:00 p.m.–4:00 p.m., hora de Costa Rica. Las fechas corresponden a octubre del año anterior al ciclo activo y se renuevan tras reiniciar el ciclo.
 
@@ -153,6 +153,16 @@ El récord académico tiene cinco filas: cuarto I, cuarto II, quinto I, quinto I
 
 Las notas del formato anterior se conservan como referencias en el JSON original y pueden consultarse en el expediente. No se duplican ni se convierten en calificaciones de períodos; no participan del cálculo nuevo. Al restaurar un respaldo anterior con notas anuales, el corte se invalida y deben ingresarse los períodos reales. El servidor rechaza formularios antiguos que intenten guardar las claves anuales: recargue con Ctrl+F5.
 
-En **Horarios de admisión → Asignar/Cambiar**, el tipo **Reprogramación: otra fecha y hora** habilita una fecha libre, hora de inicio, hora de finalización y motivo obligatorio de 5 a 2000 caracteres. Cambiar la hora de inicio propone dos horas de duración; puede ajustar la finalización. Se usan fechas y horas locales de Costa Rica, sin convertirlas a la zona del equipo. Se puede asignar individualmente o a una selección.
+En **Horarios de admisión → Reprogramar**, el tipo **Reprogramación: otra fecha y hora** habilita una fecha libre, hora de inicio, hora de finalización y motivo obligatorio de 5 a 2000 caracteres. Cambiar la hora de inicio propone dos horas de duración; puede ajustar la finalización. Se usan fechas y horas locales de Costa Rica, sin convertirlas a la zona del equipo. Se puede asignar individualmente o a una selección.
 
 La tabla muestra el nuevo horario y el motivo. La auditoría conserva el horario y motivo anteriores junto con los nuevos. Al reprogramar, el estudiante sale de su lista anterior y aparece una sola vez en la lista del nuevo horario. El filtro **Horarios reprogramados** permite imprimir estas listas, agrupadas por fecha, inicio y finalización. Los motivos se conservan en administración y auditoría; el PDF de asistencia contiene únicamente identificación, nombre y firma. Los respaldos cifrados conservan estos campos y los respaldos anteriores se restauran sin reprogramación.
+
+## Avance del proceso y asignación directa — 15 de octubre de 2026
+
+La columna **Avance del proceso**, tanto en Estudiantes como en Horarios de admisión, muestra cuatro pasos calculados desde los datos guardados: contraseña registrada, 25 notas por período completas, nota de la prueba registrada y cita asignada. El símbolo ✓ indica completo; ○ indica pendiente. Una nota cero cuenta como registrada; una casilla vacía no cuenta. Se muestran la cantidad de notas y los procesos pendientes. No se devuelve ni muestra la contraseña ni su hash.
+
+Pulse **Contraseña**, **Notas**, **Prueba** o **Cita** para abrir la parte correspondiente del expediente. Cita abre la pantalla de horarios con ese estudiante visible y seleccionado. El filtro de la tabla de Estudiantes permite ver procesos pendientes o registros completos.
+
+En horarios, cada fila tiene selectores de fecha y bloque y un botón **Guardar**, habilitado al completar ambos campos. Para asignar en grupo, elija un bloque de las tarjetas o utilice **Fecha a asignar / Bloque a asignar**, marque estudiantes y pulse **Guardar a seleccionados**. Las tarjetas ya no filtran la tabla: mantienen visibles a los estudiantes sin cita y conservan la selección. Los filtros para consulta e impresión permanecen separados y pueden limpiarse con **Quitar filtros**. Los cambios siguen usando la versión del horario para evitar sobrescrituras entre usuarios.
+
+Las pruebas de esta interfaz utilizan el HTML y los scripts reales mediante jsdom, y ejecutan las solicitudes contra el backend SQL local de la misma aplicación. Cubren guardado por fila, asignación múltiple, persistencia tras recargar, indicadores de notas y prueba cero, filtros, accesos a cada proceso, reprogramación, PDF y conflicto entre sesiones. jsdom es una dependencia de desarrollo fijada en package-lock.json; el sitio publicado sigue siendo estático y no carga esa dependencia.

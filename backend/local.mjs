@@ -16,6 +16,7 @@ export async function localBackend({persist, password, fastHash=false, authFetch
  await db.exec(await readFile(new URL('../supabase/password-recovery.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../supabase/period-grades.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../supabase/exam-schedule.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../supabase/student-progress.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../supabase/update-public-result.sql',import.meta.url),'utf8'));
  const rpc=async(_url,options)=>{
   if(_url.includes('/auth/v1/'))return authFetch?authFetch(_url,options):Response.json({error:'Email is unavailable in the local preview'},{status:503});

@@ -46,7 +46,8 @@ begin
    'name',concat_ws(' ',s.first_name,s.last_name1,nullif(s.last_name2,'')),
    'date',s.exam_date,'block',s.exam_block,'version',s.exam_schedule_version,
    'kind',case when s.exam_date is null then 'unassigned' when s.exam_block is null then 'custom' else 'regular' end,
-   'start',to_char(s.exam_start,'HH24:MI'),'end',to_char(s.exam_end,'HH24:MI'),'reason',s.exam_reschedule_reason)
+   'start',to_char(s.exam_start,'HH24:MI'),'end',to_char(s.exam_end,'HH24:MI'),'reason',s.exam_reschedule_reason,
+   'progress',admission_private.student_progress(s))
    order by s.last_name1,s.last_name2,s.first_name,s.id),'[]') into rows from admission_private.students s;
   select jsonb_agg(jsonb_build_object('date',d.value,'block',b.value->'id','count',
    (select count(*) from admission_private.students s where s.exam_date=d.value::date and s.exam_block=(b.value->>'id')::int))
