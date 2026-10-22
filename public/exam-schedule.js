@@ -8,6 +8,8 @@ window.ExamSchedule=(()=>{
  function filters(){return {date:el('scheduleDate').value,block:el('scheduleBlock').value,state:el('scheduleState').value,q:el('scheduleSearch').value.trim().toLocaleLowerCase('es')};}
  function updateControls(){
   el('assignSchedule').disabled=busy||!selected.size||!el('batchExamDate').value||!el('batchExamBlock').value;
+  el('clearScheduleSelection').disabled=busy||!selected.size;
+  el('clearAllSchedule').disabled=busy||!data?.rows.some(r=>r.date);
   el('rescheduleSelected').disabled=busy||!selected.size;el('scheduleSelection').textContent=selected.size+' seleccionados';
   const all=el('selectScheduleAll');all.checked=visible.length>0&&selected.size===visible.length;all.indeterminate=selected.size>0&&selected.size<visible.length;all.disabled=busy||!visible.length;
   el('scheduleRows').querySelectorAll('[data-schedule-save]').forEach(button=>{const choice=choices.get(Number(button.dataset.scheduleSave));button.disabled=busy||!choice?.date||!choice?.block;});
@@ -27,7 +29,7 @@ window.ExamSchedule=(()=>{
   el('scheduleCount').textContent=visible.length+' de '+data.rows.length+' estudiantes';updateControls();
  }
  async function load(options={}){
-  const request=++generation;el('refreshSchedule').disabled=true;
+  const request=++generation;el('refreshSchedule').disabled=true;el('clearAllSchedule').disabled=true;
   try{
    const result=await api('/api/admin/exam-schedule');if(request!==generation)return;data=result;choices.clear();notice('');
    const f=filters(),batchDate=el('batchExamDate').value,batchBlock=el('batchExamBlock').value,regularDates=data.regular_dates||data.dates;
@@ -42,7 +44,7 @@ window.ExamSchedule=(()=>{
    if(options.studentId){const student=data.rows.find(r=>r.id===Number(options.studentId));if(student){el('scheduleDate').value='';el('scheduleBlock').value='';el('scheduleState').value='';el('scheduleSearch').value=student.identification;}}
    render();if(options.studentId&&visible.some(r=>r.id===Number(options.studentId))){selected.add(Number(options.studentId));const checkbox=el('scheduleRows').querySelector(`[data-schedule-check="${Number(options.studentId)}"]`);if(checkbox)checkbox.checked=true;updateControls();el('scheduleRows').querySelector(`[data-schedule-date="${Number(options.studentId)}"]`)?.focus();}
   }catch(error){if(request===generation){data=null;selected.clear();visible=[];el('scheduleRows').innerHTML='<tr><td colspan="5">No fue posible cargar los horarios. Pulse Actualizar lista.</td></tr>';updateControls();notice(error.message,true);}}
-  finally{if(request===generation)el('refreshSchedule').disabled=busy;}
+  finally{if(request===generation){el('refreshSchedule').disabled=busy;updateControls();}}
  }
  async function saveRegular(rows,date,block){
   if(busy||!rows.length)return;if(!date||!block){notice('Seleccione una fecha y un bloque para guardar.',true);return;}
@@ -50,7 +52,16 @@ window.ExamSchedule=(()=>{
   try{const result=await api('/api/admin/exam-schedule',{method:'PUT',body:{students:rows.map(r=>({id:r.id,version:r.version})),mode:'regular',date,block:Number(block)}});await load();notice(result.updated+' horario(s) guardado(s). '+dateLabel(date)+' · '+(data?.blocks.find(b=>b.id===Number(block))?.time_label||''));}
   catch(error){if(error.status===409)await load();notice(error.message,true);}finally{setBusy(false);}
  }
- async function clearRows(rows){if(busy||!rows.length||!confirm('¿Desea quitar la cita de '+rows.length+' estudiante(s)?'))return;setBusy(true);try{await api('/api/admin/exam-schedule',{method:'PUT',body:{students:rows.map(r=>({id:r.id,version:r.version})),date:null,block:null}});await load();notice('Cita eliminada. El estudiante permanece pendiente de asignar.');}catch(error){notice(error.message,true);}finally{setBusy(false);}}
+ async function clearRows(rows,{all=false}={}){
+  if(busy||!rows.length)return;
+  const message=all?'¿Desea quitar las '+rows.length+' citas de todo el proceso, incluidos todos los días, bloques y horarios reprogramados, aunque haya filtros activos? Los estudiantes quedarán sin cita; se conservan sus notas, contraseñas y adecuaciones.':'¿Desea quitar la cita de '+rows.length+' estudiante(s)?';
+  if(!confirm(message))return;setBusy(true);notice('Quitando las citas…');
+  try{
+   const result=await api('/api/admin/exam-schedule',{method:'PUT',body:{students:rows.map(r=>({id:r.id,version:r.version})),date:null,block:null}});
+   if(all){for(const id of ['scheduleDate','scheduleBlock','scheduleState','scheduleSearch','batchExamDate','batchExamBlock'])el(id).value='';}
+   await load();notice(result.updated+' cita(s) eliminada(s). '+(all?'Todos los estudiantes quedan pendientes de asignar horario.':'El estudiante permanece pendiente de asignar.'));
+  }catch(error){if(error.status===409)await load();notice(error.message,true);}finally{setBusy(false);}
+ }
  function edit(rows,forceCustom=false){
   if(!rows.length)return;
   const first=rows[0],same=rows.every(r=>r.date===first.date&&r.block===first.block&&r.start===first.start&&r.end===first.end),f=filters();
@@ -78,6 +89,8 @@ window.ExamSchedule=(()=>{
  ['scheduleDate','scheduleBlock','scheduleState'].forEach(id=>el(id).addEventListener('change',render));el('scheduleSearch').addEventListener('input',render);
  ['batchExamDate','batchExamBlock'].forEach(id=>el(id).addEventListener('change',updateControls));
  el('clearScheduleFilters').addEventListener('click',()=>{for(const id of ['scheduleDate','scheduleBlock','scheduleState','scheduleSearch'])el(id).value='';render();});
+ el('clearScheduleSelection').addEventListener('click',()=>{if(busy)return;selected.clear();el('scheduleRows').querySelectorAll('[data-schedule-check]').forEach(c=>c.checked=false);updateControls();notice('Selección desmarcada. Las citas asignadas se conservan.');});
+ el('clearAllSchedule').addEventListener('click',()=>{if(data)clearRows(data.rows.filter(r=>r.date),{all:true});});
  el('selectScheduleAll').addEventListener('change',event=>{selected=new Set(event.target.checked?visible.map(r=>r.id):[]);el('scheduleRows').querySelectorAll('[data-schedule-check]').forEach(c=>c.checked=event.target.checked);updateControls();});
  el('scheduleRows').addEventListener('change',event=>{
   const target=event.target,check=target.dataset.scheduleCheck;if(check){target.checked?selected.add(Number(check)):selected.delete(Number(check));updateControls();return;}

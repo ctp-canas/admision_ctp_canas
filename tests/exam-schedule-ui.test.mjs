@@ -84,6 +84,25 @@ test('administration DOM and real backend: progress, direct saving, group saving
    w.createScheduleReport=async report=>{downloads.push({scheduleReport:report});return new w.Uint8Array([4,5,6]);};
    byId('scheduleSearch').value='00001';byId('scheduleSearch').dispatchEvent(new w.Event('input',{bubbles:true}));byId('printSchedule').click();await waitFor(()=>downloads.some(x=>x.scheduleReport),'schedule PDF');assert.equal(downloads.find(x=>x.scheduleReport).scheduleReport.rows.length,3);assert.ok(downloads.some(x=>x.name?.startsWith('Informe_Horarios_')));
   });
+  await t.test('deselect all clears only check marks and preserves assigned appointments',async()=>{
+   byId('clearScheduleFilters').click();const before=await schedules(),writes=requests.filter(r=>r.method==='PUT').length;
+   byId('selectScheduleAll').click();assert.equal(byId('scheduleSelection').textContent,'3 seleccionados');assert.equal(byId('clearScheduleSelection').disabled,false);byId('clearScheduleSelection').click();
+   assert.equal(byId('scheduleSelection').textContent,'0 seleccionados');assert.equal(byId('selectScheduleAll').checked,false);assert.equal(byId('selectScheduleAll').indeterminate,false);assert.equal(byId('clearScheduleSelection').disabled,true);assert.ok([...d.querySelectorAll('[data-schedule-check]')].every(c=>!c.checked));assert.equal(requests.filter(r=>r.method==='PUT').length,writes);assert.deepEqual((await schedules()).rows,before.rows);
+  });
+  await t.test('clear all confirms its complete scope, includes custom appointments and rejects stale bulk edits atomically',async()=>{
+   let state=await schedules(),firstRow=state.rows.find(s=>s.id===first);
+   await api('/api/admin/exam-schedule','PUT',{students:[{id:first,version:firstRow.version}],mode:'custom',date:'2026-11-03',start:'09:15',end:'11:15',reason:'Cita excepcional para verificar eliminación masiva.'});await w.ExamSchedule.load();
+   change(byId('scheduleDate'),'2026-11-03');byId('scheduleSearch').value='sin coincidencias';byId('scheduleSearch').dispatchEvent(new w.Event('input',{bubbles:true}));assert.equal(byId('scheduleCount').textContent,'0 de 3 estudiantes');assert.equal(byId('clearAllSchedule').disabled,false);
+   const before=await schedules(),writes=requests.filter(r=>r.method==='PUT').length;let confirmation='';w.confirm=message=>{confirmation=message;return false;};byId('clearAllSchedule').click();assert.ok(confirmation.includes('3 citas de todo el proceso'));assert.ok(confirmation.includes('reprogramados'));assert.equal(requests.filter(r=>r.method==='PUT').length,writes);assert.deepEqual((await schedules()).rows,before.rows);
+   w.confirm=()=>true;state=await schedules();const secondRow=state.rows.find(s=>s.id===second);await api('/api/admin/exam-schedule','PUT',{students:[{id:second,version:secondRow.version}],date:'2026-10-29',block:3});const changed=await schedules();
+   byId('clearAllSchedule').click();await waitFor(()=>byId('scheduleMsg').textContent.includes('Otra persona'),'stale clear all');assert.deepEqual((await schedules()).rows,changed.rows,'all-or-nothing: other appointments survive stale selection');
+   await db.exec("update admission_private.config set data=data||'{\"cut_valid\":true}'::jsonb where id=1");
+   const preserved=(await db.query('select id,identification,first_name,last_name1,last_name2,password_hash,grades,exam,version,decision,accommodation from admission_private.students order by id')).rows;
+   byId('clearAllSchedule').click();await waitFor(()=>byId('scheduleMsg').textContent.includes('3 cita(s) eliminada(s)'),'clear all appointments');
+   const cleared=await schedules();assert.equal(cleared.summary.assigned,0);assert.equal(cleared.summary.unassigned,3);assert.equal(cleared.custom_slots.length,0);assert.ok(cleared.rows.every(s=>s.date===null&&s.block===null&&s.start===null&&s.end===null&&s.reason===''&&!s.progress.appointment));assert.equal(byId('scheduleDate').value,'');assert.equal(byId('scheduleSearch').value,'');assert.equal(byId('scheduleCount').textContent,'3 de 3 estudiantes');assert.equal(byId('batchExamDate').value,'');assert.equal(byId('batchExamBlock').value,'');assert.equal(byId('clearAllSchedule').disabled,true);
+   assert.deepEqual((await db.query('select id,identification,first_name,last_name1,last_name2,password_hash,grades,exam,version,decision,accommodation from admission_private.students order by id')).rows,preserved);assert.equal((await api('/api/admin/config')).cut_valid,true);
+   const sent=requests.filter(r=>r.path==='/api/admin/exam-schedule'&&r.method==='PUT').at(-1);assert.equal(sent.body.students.length,3);assert.equal(sent.body.date,null);assert.equal(sent.body.block,null);assert.equal((await api('/api/admin/exam-attendance')).groups.flatMap(g=>g.rows).length,0);
+  });
   assert.deepEqual(alerts,[]);
  }finally{dom.window.close();await db.close();}
 });
