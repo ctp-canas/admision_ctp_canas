@@ -77,6 +77,13 @@ test('administration DOM and real backend: progress, direct saving, group saving
    byId('clearScheduleFilters').click();const stale=(await schedules()).rows.find(r=>r.id===first);await api('/api/admin/exam-schedule','PUT',{students:[{id:first,version:stale.version}],date:'2026-10-28',block:1});
    change(row(first).querySelector('[data-schedule-date]'),'2026-10-28');change(row(first).querySelector('[data-schedule-block]'),'2');row(first).querySelector('[data-schedule-save]').click();await waitFor(()=>byId('scheduleMsg').textContent.includes('Otra persona'),'stale edit');assert.equal((await schedules()).rows.find(r=>r.id===first).block,1);
   });
+  await t.test('student data saves accommodation and the schedule PDF ignores individual search',async()=>{
+   await w.openStudent(third,'data');assert.equal(byId('fAccommodation').value,'NP');change(byId('fAccommodation'),'ACNS');byId('saveStudent').click();await waitFor(()=>!byId('saveStudent'),'save student condition');
+   const saved=(await api('/api/admin/students')).rows.find(s=>s.id===third);assert.equal(saved.accommodation,'ACNS');await w.openStudent(third,'data');assert.equal(byId('fAccommodation').value,'ACNS');w.closeModal();
+   w.showSection('examSchedule');await waitFor(()=>row(third)?.textContent.includes('Aula Específica'),'room badge');
+   w.createScheduleReport=async report=>{downloads.push({scheduleReport:report});return new w.Uint8Array([4,5,6]);};
+   byId('scheduleSearch').value='00001';byId('scheduleSearch').dispatchEvent(new w.Event('input',{bubbles:true}));byId('printSchedule').click();await waitFor(()=>downloads.some(x=>x.scheduleReport),'schedule PDF');assert.equal(downloads.find(x=>x.scheduleReport).scheduleReport.rows.length,3);assert.ok(downloads.some(x=>x.name?.startsWith('Informe_Horarios_')));
+  });
   assert.deepEqual(alerts,[]);
  }finally{dom.window.close();await db.close();}
 });

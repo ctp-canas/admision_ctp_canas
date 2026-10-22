@@ -93,15 +93,19 @@ begin
   if method='POST' or coalesce(body->>'password','')<>'' then
    if body->>'password' !~ '^[A-Z0-9]{6}$' or body->>'password' is null then raise exception 'La contraseña debe tener 6 caracteres A-Z o 0-9.'; end if;
   end if;
+  if body ? 'accommodation' and (jsonb_typeof(body->'accommodation') is distinct from 'string' or body->>'accommodation' not in ('NP','ACNS','ACS')) then
+   raise exception 'Seleccione un tipo de adecuación válido: NP, ACNS o ACS.'; end if;
   if method='POST' then
-   insert into admission_private.students(identification,first_name,last_name1,last_name2,password_hash,updated_by)
+   insert into admission_private.students(identification,first_name,last_name1,last_name2,password_hash,updated_by,accommodation)
    values(trim(body->>'identification'),trim(body->>'first_name'),trim(body->>'last_name1'),trim(coalesce(body->>'last_name2','')),
-   extensions.crypt(body->>'password',extensions.gen_salt('bf',12)),u.id) returning id into sid;
+   extensions.crypt(body->>'password',extensions.gen_salt('bf',12)),u.id,coalesce(body->>'accommodation','NP')) returning id into sid;
   else
    if (body->>'version')::int is distinct from s.version then return '{"_status":409,"error":"El expediente cambió. Vuelva a abrirlo."}'; end if;
    update admission_private.students set identification=trim(body->>'identification'),first_name=trim(body->>'first_name'),
    last_name1=trim(body->>'last_name1'),last_name2=trim(coalesce(body->>'last_name2','')),
    password_hash=case when coalesce(body->>'password','')<>'' then extensions.crypt(body->>'password',extensions.gen_salt('bf',12)) else password_hash end,
+   accommodation=case when body ? 'accommodation' then body->>'accommodation' else accommodation end,
+   exam_schedule_version=exam_schedule_version+case when body ? 'accommodation' and accommodation is distinct from body->>'accommodation' then 1 else 0 end,
    version=version+1,updated_by=u.id,updated_at=now() where id=sid;
   end if;
   perform admission_private.invalidate(); perform admission_private.log_event(u.id,'ESTUDIANTE_GUARDADO',sid);
@@ -264,6 +268,9 @@ begin
   snap_hash:=encode(extensions.digest(body->>'payload','sha256'),'hex');
   if snap_hash is distinct from body->>'sha256' then raise exception 'La integridad del respaldo no es válida.'; end if;
   snap:=admission_private.restore_payload(body->>'payload',backup_key);
+  if exists(select 1 from jsonb_array_elements(snap->'students') a(value) where a.value ? 'accommodation' and
+   (jsonb_typeof(a.value->'accommodation') is distinct from 'string' or a.value->>'accommodation' not in ('NP','ACNS','ACS'))) then
+   raise exception 'El respaldo contiene un tipo de adecuación inválido.'; end if;
   if path='/api/admin/restore/preview' then return jsonb_build_object('cycle_year',snap->'config'->>'cycle_year','students',jsonb_array_length(snap->'students'),'users',jsonb_array_length(snap->'users'),'created_at',snap->>'created_at','sha256',snap_hash); end if;
   if body->>'confirmation'<>'RESTAURAR' then raise exception 'Escriba RESTAURAR para confirmar.'; end if;
   current_uid:=u.id; bk:=admission_private.make_backup('prerestauracion',backup_key,u.id);
@@ -271,7 +278,7 @@ begin
   insert into admission_private.users select * from jsonb_populate_recordset(null::admission_private.users,snap->'users');
   -- Older backups have no schedule version; their students restore as unassigned.
   insert into admission_private.students select * from jsonb_populate_recordset(
-   jsonb_populate_record(null::admission_private.students,'{"exam_schedule_version":0,"exam_reschedule_reason":""}'::jsonb),snap->'students');
+   jsonb_populate_record(null::admission_private.students,'{"exam_schedule_version":0,"exam_reschedule_reason":"","accommodation":"NP"}'::jsonb),snap->'students');
   update admission_private.config set data=snap->'config' where id=1;
   perform admission_private.sync_period_model();
   -- Keep the audit trail of the state being replaced and incorporate missing restored entries.

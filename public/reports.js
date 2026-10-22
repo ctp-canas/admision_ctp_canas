@@ -12,7 +12,7 @@ async function createReport(data,{forceDraft=false}={}){
  const centered=(value,yy,size=8,f=font,color=navy)=>text(value,(W-width(value,f,size))/2,yy,size,f,color);
  const fit=(v,w,size=8,f=font)=>{let s=plain(v);if(width(s,f,size)<=w)return s;while(s&&width(s+'...',f,size)>w)s=s.slice(0,-1);return s+'...';};
  const wrap=(v,w,size=8)=>{const result=[];let current='';for(const word of plain(v).split(/\s+/)){if(width((current?current+' ':'')+word,font,size)>w&&current){result.push(current);current=word;}else current+=(current?' ':'')+word;}result.push(current);return result.map(x=>fit(x,w,size));};
- const cols=[42,75,208,68,60,63,60,65,99],headers=['Puesto','Identificación','Nombre completo','Promedio','Aporte 60%','Prueba','Aporte 40%','Nota final','Estado'];
+ const cols=[30,78,174,53,59,53,59,56,60,118],headers=['N.º','Identificación','Nombre completo','Promedio','Aporte 60%','Prueba','Aporte 40%','Nota final','Adecuación','Estado'];
  const tableHead=()=>{page.drawRectangle({x:M,y:y-21,width:W-2*M,height:24,color:navy});let x=M;headers.forEach((h,i)=>{text(fit(h,cols[i]-8,7.2,bold),x+4,y-12,7.2,bold,rgb(1,1,1));x+=cols[i];});y-=28;};
  const addPage=(first=false,withTable=true)=>{
   page=pdf.addPage([W,H]);pages.push(page);
@@ -28,15 +28,16 @@ async function createReport(data,{forceDraft=false}={}){
  };
  addPage(true);const lastAdmitted=data.rows.findLastIndex(r=>r.status==='ADMITIDO');
  data.rows.forEach((r,index)=>{
-  const names=wrap(r.name,cols[2]-8),states=wrap(r.status?.replaceAll('_',' ')||'INCOMPLETO',cols[8]-8,7),rowH=Math.max(25,Math.max(names.length,states.length)*11+9);
+  const names=wrap(r.name,cols[2]-8),ids=wrap(r.identification,cols[1]-8,7.5),states=wrap(r.status?.replaceAll('_',' ')||'INCOMPLETO',cols[9]-8,7),rowH=Math.max(25,Math.max(names.length,states.length,ids.length)*11+9);
   if(y-rowH<95)addPage();
   if(index%2===0)page.drawRectangle({x:M,y:y-rowH+5,width:W-2*M,height:rowH,color:rgb(.96,.97,.98)});
-  const values=[r.position,r.identification,r.name,r.academic_avg_display,r.academic_component_display,r.exam_display,r.exam_component_display,r.final_display,r.status?.replaceAll('_',' ')||'INCOMPLETO'];
-  let x=M;values.forEach((v,i)=>{const lines=i===2?names:i===8?states:[fit(v,cols[i]-8,i===1?7.5:8)];lines.forEach((l,j)=>text(l,x+4,y-9-j*11,i===8?7:8,i===7?bold:font));x+=cols[i];});
+  const values=[r.position,r.identification,r.name,r.academic_avg_display,r.academic_component_display,r.exam_display,r.exam_component_display,r.final_display,r.accommodation||'NP',r.status?.replaceAll('_',' ')||'INCOMPLETO'];
+  let x=M;values.forEach((v,i)=>{const lines=i===2?names:i===1?ids:i===9?states:[fit(v,cols[i]-8,i===1?7.5:8)];lines.forEach((l,j)=>text(l,x+4,y-9-j*11,i===9?7:8,(i===7||i===8)?bold:font));x+=cols[i];});
   page.drawLine({start:{x:M,y:y-rowH+4},end:{x:W-M,y:y-rowH+4},thickness:.4,color:line});y-=rowH;
   if(index===lastAdmitted){if(y<110)addPage();text('FIN DE ESTUDIANTES ADMITIDOS',M+4,y-10,8,bold);y-=26;}
  });
- if(y<155)addPage(false,false);
+ if(y<175)addPage(false,false);
+ text('NP: No posee adecuación · ACNS: Adecuación Curricular No Significativa · ACS: Adecuación Curricular Significativa',M,y-14,7);y-=28;
  if(data.tie_resolved){text('El empate que afectaba el corte fue resuelto mediante una decisión administrativa registrada.',M,y-16,8);y-=28;}
  page.drawLine({start:{x:M+40,y:y-45},end:{x:M+280,y:y-45},thickness:.7,color:gray});page.drawLine({start:{x:W-M-280,y:y-45},end:{x:W-M-40,y:y-45},thickness:.7,color:gray});
  text('Dirección',M+115,y-59,9);text('Responsable del proceso',W-M-225,y-59,9);

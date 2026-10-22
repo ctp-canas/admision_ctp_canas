@@ -15,6 +15,7 @@ export async function localBackend({persist, password, fastHash=false, authFetch
  // Applies to existing previews as well as new databases; keeps records and credentials.
  await db.exec(await readFile(new URL('../supabase/password-recovery.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../supabase/period-grades.sql',import.meta.url),'utf8'));
+ await db.exec(await readFile(new URL('../supabase/student-accommodations.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../supabase/exam-schedule.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../supabase/student-progress.sql',import.meta.url),'utf8'));
  await db.exec(await readFile(new URL('../supabase/update-public-result.sql',import.meta.url),'utf8'));

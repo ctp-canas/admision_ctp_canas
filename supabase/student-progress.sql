@@ -14,4 +14,4 @@ grant execute on function admission_private.student_progress(admission_private.s
 create or replace function admission_private.student_json(s admission_private.records)
 returns jsonb language sql stable security invoker set search_path='' as $$
  select (to_jsonb(s)-array['password_hash','grades','exam','decision','avg','ac','ec','total'])||
-  jsonb_build_object('progress',(select admission_private.student_progress(st) from admission_private.students st where st.id=(s).id)); $$;
+  (select jsonb_build_object('progress',admission_private.student_progress(st),'accommodation',st.accommodation) from admission_private.students st where st.id=(s).id); $$;

@@ -37,18 +37,20 @@ begin
   'time_label',to_char(c.exam_start,'FMHH12:MI')||case when extract(hour from c.exam_start)<12 then ' a.m.' else ' p.m.' end||' a '||
    to_char(c.exam_end,'FMHH12:MI')||case when extract(hour from c.exam_end)<12 then ' a.m.' else ' p.m.' end,
   'rows',(select jsonb_agg(jsonb_build_object('identification',s.identification,
-   'name',concat_ws(' ',s.first_name,s.last_name1,nullif(s.last_name2,''))) order by s.last_name1,s.last_name2,s.first_name,s.id)
+   'name',concat_ws(' ',s.first_name,s.last_name1,nullif(s.last_name2,''))) order by admission_private.alphabetical_key(s.last_name1) collate "C",admission_private.alphabetical_key(s.last_name2) collate "C",admission_private.alphabetical_key(s.first_name) collate "C",s.id)
    from admission_private.students s where s.exam_date=c.exam_date and s.exam_block is null and s.exam_start=c.exam_start and s.exam_end=c.exam_end))
   order by c.exam_date,c.exam_start,c.exam_end),'[]') into custom_groups
  from (select distinct exam_date,exam_start,exam_end from admission_private.students where exam_date is not null and exam_block is null) c;
  if method='GET' and path='/api/admin/exam-schedule' then
   select coalesce(jsonb_agg(jsonb_build_object('id',s.id,'identification',s.identification,
    'name',concat_ws(' ',s.first_name,s.last_name1,nullif(s.last_name2,'')),
+   'first_name',s.first_name,'last_name1',s.last_name1,'last_name2',s.last_name2,
+   'room',case when s.accommodation='NP' then 'Aula regular' else 'Aula Específica' end,
    'date',s.exam_date,'block',s.exam_block,'version',s.exam_schedule_version,
    'kind',case when s.exam_date is null then 'unassigned' when s.exam_block is null then 'custom' else 'regular' end,
    'start',to_char(s.exam_start,'HH24:MI'),'end',to_char(s.exam_end,'HH24:MI'),'reason',s.exam_reschedule_reason,
    'progress',admission_private.student_progress(s))
-   order by s.last_name1,s.last_name2,s.first_name,s.id),'[]') into rows from admission_private.students s;
+   order by admission_private.alphabetical_key(s.last_name1) collate "C",admission_private.alphabetical_key(s.last_name2) collate "C",admission_private.alphabetical_key(s.first_name) collate "C",s.id),'[]') into rows from admission_private.students s;
   select jsonb_agg(jsonb_build_object('date',d.value,'block',b.value->'id','count',
    (select count(*) from admission_private.students s where s.exam_date=d.value::date and s.exam_block=(b.value->>'id')::int))
    order by d.value,(b.value->>'id')::int) into groups from jsonb_array_elements_text(regular_dates) d cross join jsonb_array_elements(blocks) b;
@@ -64,13 +66,26 @@ begin
   select jsonb_agg(jsonb_build_object('date',d.value,'block',b.value->'id','kind','regular',
    'start',b.value->>'start','end',b.value->>'end','label',b.value->>'label','time_label',b.value->>'time_label',
    'rows',(select coalesce(jsonb_agg(jsonb_build_object('identification',s.identification,
-    'name',concat_ws(' ',s.first_name,s.last_name1,nullif(s.last_name2,''))) order by s.last_name1,s.last_name2,s.first_name,s.id),'[]')
+    'name',concat_ws(' ',s.first_name,s.last_name1,nullif(s.last_name2,''))) order by admission_private.alphabetical_key(s.last_name1) collate "C",admission_private.alphabetical_key(s.last_name2) collate "C",admission_private.alphabetical_key(s.first_name) collate "C",s.id),'[]')
     from admission_private.students s where s.exam_date=d.value::date and s.exam_block=(b.value->>'id')::int))
    order by d.value,(b.value->>'id')::int) into groups
    from jsonb_array_elements_text(regular_dates) d cross join jsonb_array_elements(blocks) b;
-  select coalesce(jsonb_agg(g order by g->>'date',g->>'start',g->>'end'),'[]') into groups from jsonb_array_elements(groups||custom_groups) g
-   where (nullif(payload->>'date','') is null or g->>'date'=payload->>'date')
-    and (nullif(payload->>'block','') is null or g->>'block'=payload->>'block' or (payload->>'block'='custom' and g->>'kind'='custom'));
+  -- Each student appears exactly once per date/time, separated only by room.
+  -- Attendance payloads intentionally contain no accommodation codes or reasons.
+  select coalesce(jsonb_agg((g-'rows')||jsonb_build_object('room',room.label,'rows',att.rows)
+   order by g->>'date',g->>'start',g->>'end',room.specific),'[]') into groups
+  from jsonb_array_elements(groups||custom_groups) g
+  cross join (values ('Aula regular',false),('Aula Específica',true)) room(label,specific)
+  cross join lateral (select coalesce(jsonb_agg(jsonb_build_object('identification',s.identification,
+   'name',concat_ws(' ',s.last_name1,nullif(s.last_name2,''),s.first_name))
+   order by admission_private.alphabetical_key(s.last_name1) collate "C",admission_private.alphabetical_key(s.last_name2) collate "C",admission_private.alphabetical_key(s.first_name) collate "C",s.id),'[]') rows
+   from admission_private.students s where s.exam_date=(g->>'date')::date
+    and ((g->>'kind'='regular' and s.exam_block=(g->>'block')::int) or
+     (g->>'kind'='custom' and s.exam_block is null and s.exam_start=(g->>'start')::time and s.exam_end=(g->>'end')::time))
+    and (s.accommodation<>'NP')=room.specific) att
+  where (not room.specific or jsonb_array_length(att.rows)>0)
+   and (nullif(payload->>'date','') is null or g->>'date'=payload->>'date')
+   and (nullif(payload->>'block','') is null or g->>'block'=payload->>'block' or (payload->>'block'='custom' and g->>'kind'='custom'));
   return jsonb_build_object('cycle_year',cfg->>'cycle_year','timezone','America/Costa_Rica','groups',groups);
  end if;
  if method='PUT' and path='/api/admin/exam-schedule' then
