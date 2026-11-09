@@ -1,10 +1,25 @@
 const $=s=>document.querySelector(s);let statusInfo=null;
 function fmtDate(iso){return new Intl.DateTimeFormat('es-CR',{dateStyle:'long',timeStyle:'short',timeZone:'America/Costa_Rica'}).format(new Date(iso));}
 function escapeHtml(s){return String(s??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));}
+function displayScore(value,max=100){
+ return typeof value==='string'&&/^\d{1,3}\.\d{4}$/.test(value)&&Number(value)<=max?value.replace('.',','):null;
+}
+function scoreBreakdown(details){
+ const rows=[
+  ['Nota de presentación',60,displayScore(details?.presentation_score),displayScore(details?.presentation_points,60)],
+  ['Prueba escrita',40,displayScore(details?.exam_score),displayScore(details?.exam_points,40)]
+ ];
+ if(rows.some(([, ,score,points])=>score===null||points===null))return '';
+ return '<section class="result-breakdown" aria-labelledby="breakdownTitle"><h4 id="breakdownTitle">Desglose de la nota</h4>'+
+  '<table aria-labelledby="breakdownTitle"><thead><tr><th scope="col">Componente</th><th scope="col">Nota<small>sobre 100</small></th><th scope="col">Aporte<small>en puntos</small></th></tr></thead><tbody>'+
+  rows.map(([label,weight,score,points])=>'<tr><th scope="row">'+label+'<small>Vale '+weight+' %</small></th><td>'+score+'</td><td><strong>'+points+'</strong><small>de '+weight+'</small></td></tr>').join('')+
+  '</tbody></table><p>La nota final es la suma de los puntos aportados por los dos componentes.</p></section>';
+}
 function scoreCard(d){
  if(!['ADMITIDO','NO_ADMITIDO'].includes(d.status))return '';
- const score=typeof d.final_score==='string'&&/^\d{1,3}\.\d{4}$/.test(d.final_score)&&Number(d.final_score)<=100?d.final_score.replace('.',','):null;
- return '<div class="result-score"><p>Nota final de admisión</p><strong>'+ (score??'Nota no disponible')+'</strong>'+(score!==null?'<span>Sobre 100 puntos</span>':'')+'</div>';
+ const score=displayScore(d.final_score);
+ return '<div class="result-score"><p>Nota final de admisión</p><strong>'+ (score??'Nota no disponible')+'</strong>'+(score!==null?'<span>Sobre 100 puntos</span>':'')+'</div>'+
+  (score!==null?scoreBreakdown(d.score_breakdown):'');
 }
 async function loadStatus(){
  try{

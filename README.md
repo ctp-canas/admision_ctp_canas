@@ -108,7 +108,7 @@ La interfaz utiliza la paleta del escudo institucional y adapta la consulta indi
 
 ## Actualización de la nota en la consulta de resultados
 
-La consulta muestra «Nota final de admisión», cuatro decimales y «Sobre 100 puntos» para admitidos y no admitidos. Usa el resultado oficial del promedio ponderado 60/40, sin recalcularlo en el navegador. Una nota de cero se muestra como `0,0000`. Los pendientes y las renuncias conservan su mensaje de estado.
+La consulta muestra «Nota final de admisión», cuatro decimales y «Sobre 100 puntos» para admitidos y no admitidos. También muestra la nota de presentación y la prueba escrita sobre 100, con sus aportes respectivos sobre 60 y 40 puntos. Ambos aportes y el total corresponden al cálculo oficial del servidor. Una nota de cero se muestra como `0,0000`. Los pendientes y las renuncias conservan su mensaje de estado.
 
 Para actualizar una vista previa existente: detenga el servidor con Ctrl+C, extraiga el paquete en otra carpeta y copie `public`, `backend/local.mjs`, `supabase/update-public-result.sql`, `supabase/password-recovery.sql`, `supabase/period-grades.sql`, `supabase/student-accommodations.sql`, `supabase/exam-schedule.sql`, `supabase/student-progress.sql` y `supabase/functions/admission` sobre los mismos elementos de su instalación. Conserve la carpeta `data`. Ejecute `npm.cmd run preview` y recargue con Ctrl+F5. Al arrancar, el servidor aplica la actualización a la base local conservando estudiantes, notas, configuración y credenciales.
 

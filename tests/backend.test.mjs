@@ -79,9 +79,9 @@ test('admissions backend, transactions and permissions',async t=>{
   ranking=await request('/api/admin/ranking');assert.equal(ranking.rows.find(r=>r.id===b).status,'ADMITIDO');assert.equal(ranking.rows.find(r=>r.id===a).status,'RENUNCIO');
   await put('/api/admin/config',{publication_at:'2020-01-01T00:00:00-06:00',published:true,admitted_instructions:'Texto <script>alert(1)</script>',not_admitted_message:'Gracias'});
   const own=await post('/api/public/result',{identification:'B',password:'AB12CD'},'');assert.equal(own.httpStatus,200);assert.equal(own.name,'Beatriz Prueba');assert.equal(own.status,'ADMITIDO');assert.equal(own.final_score,'90.0000');assert.equal(own.rows,undefined);
-  assert.deepEqual(Object.keys(own).sort(),['final_score','httpStatus','instructions','name','status']);
+  assert.deepEqual(Object.keys(own).sort(),['final_score','httpStatus','instructions','name','score_breakdown','status']);
   const notAdmitted=await post('/api/public/result',{identification:'C',password:'AB12CD'},'');assert.equal(notAdmitted.status,'NO_ADMITIDO');assert.equal(notAdmitted.final_score,'80.0000');
-  const resigned=await post('/api/public/result',{identification:'A',password:'AB12CD'},'');assert.equal(resigned.status,'RENUNCIO');assert.equal(resigned.final_score,null);
+  const resigned=await post('/api/public/result',{identification:'A',password:'AB12CD'},'');assert.equal(resigned.status,'RENUNCIO');assert.equal(resigned.final_score,null);assert.equal(resigned.score_breakdown,null);
   const wrong=await post('/api/public/result',{identification:'B',password:'WRONG1'},'');assert.equal(wrong.status,401);
   assert.equal((await post('/api/public/result',{identification:'UNKNOWN',password:'WRONG1'},'')).error,wrong.error);
  });

@@ -1,5 +1,5 @@
 -- Update existing admission databases without deleting records or changing function grants.
--- Only the authenticated applicant receives their final score after publication.
+-- Only the authenticated applicant receives their final score and components after publication.
 create or replace function public.admission_api(method text, path text, body jsonb default '{}', session_hash text default '',
  ip_hash text default '', backup_key text default '', login_hash text default '') returns jsonb
 language plpgsql security invoker set search_path='' as $$
@@ -47,6 +47,9 @@ begin
   select * into rec from admission_private.records where id=s.id;
   return jsonb_build_object('name',rec.name,'status',coalesce(rec.status,'PENDIENTE'),
   'final_score',case when rec.status in ('ADMITIDO','NO_ADMITIDO') then rec.final_display else null end,
+  'score_breakdown',case when rec.status in ('ADMITIDO','NO_ADMITIDO') then jsonb_build_object(
+   'presentation_score',rec.academic_avg_display,'presentation_points',rec.academic_component_display,
+   'exam_score',rec.exam_display,'exam_points',rec.exam_component_display) end,
   'instructions',case when rec.status='ADMITIDO' then cfg->>'admitted_instructions' when rec.status='NO_ADMITIDO' then cfg->>'not_admitted_message' else '' end);
  end if;
  select x.* into u from admission_private.users x join admission_private.sessions ss on ss.user_id=x.id
