@@ -103,6 +103,20 @@ test('administration DOM and real backend: progress, direct saving, group saving
    assert.deepEqual((await db.query('select id,identification,first_name,last_name1,last_name2,password_hash,grades,exam,version,decision,accommodation from admission_private.students order by id')).rows,preserved);assert.equal((await api('/api/admin/config')).cut_valid,true);
    const sent=requests.filter(r=>r.path==='/api/admin/exam-schedule'&&r.method==='PUT').at(-1);assert.equal(sent.body.students.length,3);assert.equal(sent.body.date,null);assert.equal(sent.body.block,null);assert.equal((await api('/api/admin/exam-attendance')).groups.flatMap(g=>g.rows).length,0);
   });
+  await t.test('principal can cancel, generate and copy a replacement password, then close without invalidating results',async()=>{
+   await db.exec("update admission_private.config set data=data||'{\"cut_valid\":true}'::jsonb where id=1");
+   await w.openStudent(third,'data');assert.ok(byId('resetStudentPassword'));assert.equal(byId('studentGeneratedPassword'),null);
+   const before=requests.filter(r=>r.path.endsWith('/password')).length;w.confirm=()=>false;byId('resetStudentPassword').click();assert.equal(requests.filter(r=>r.path.endsWith('/password')).length,before);
+   let copied='';Object.defineProperty(w.navigator,'clipboard',{configurable:true,value:{writeText:async value=>{copied=value;}}});
+   w.confirm=()=>true;byId('resetStudentPassword').click();await waitFor(()=>byId('studentGeneratedPassword'),'generated student password');const generated=byId('studentGeneratedPassword').value;assert.match(generated,/^[A-HJ-NP-Z2-9]{6}$/);assert.equal(byId('fPass').value,'');
+   byId('copyStudentPassword').click();await waitFor(()=>byId('copyStudentPasswordMsg').textContent.includes('copiada'),'copy password');assert.equal(copied,generated);
+   Object.defineProperty(w.navigator,'clipboard',{configurable:true,value:undefined});byId('copyStudentPassword').click();await waitFor(()=>byId('copyStudentPasswordMsg').textContent.includes('Ctrl+C'),'copy fallback');assert.equal(byId('studentGeneratedPassword').selectionEnd,6);
+   assert.equal((await api('/api/admin/config')).cut_valid,true);const writes=requests.filter(r=>r.method==='PUT').length;byId('saveStudent').click();await waitFor(()=>!byId('saveStudent'),'close unchanged data');assert.equal(requests.filter(r=>r.method==='PUT').length,writes);assert.equal((await api('/api/admin/config')).cut_valid,true);
+   await w.openStudent(third,'data');assert.equal(byId('studentGeneratedPassword'),null,'generated credential is not loaded again');assert.ok(!byId('modalRoot').textContent.includes(generated));w.closeModal();
+  });
+  await t.test('ordinary administrators do not see the principal password-reset control',async()=>{
+   await api('/api/admin/users','POST',{username:'password-help-admin',display_name:'Ayuda de prueba',role:'admin',password});await w.admissionRequest('/api/login',{method:'POST',body:{username:'password-help-admin',password}});await w.init();await w.openStudent(third,'data');assert.equal(byId('resetStudentPassword'),null);assert.equal(byId('studentPasswordHelpTitle'),null);assert.ok(byId('fPass'));w.closeModal();
+  });
   assert.deepEqual(alerts,[]);
  }finally{dom.window.close();await db.close();}
 });

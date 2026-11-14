@@ -6,7 +6,7 @@ language plpgsql security invoker set search_path='' as $$
 declare u admission_private.users; s admission_private.students; cfg jsonb; out jsonb; rows jsonb;
  t jsonb; rec admission_private.records; sid bigint; k text; g jsonb; v numeric; n int; tries int;
  preview jsonb; valid jsonb:='[]'; seen text[]:=array[]::text[]; issues jsonb; item jsonb; report jsonb:='[]';
- tok text; cnt int:=0; errs int:=0; dups int:=0; idx int:=1; snap jsonb; bk jsonb; snap_hash text; current_uid bigint; auth_hash text; auth_ok boolean;
+ tok text; cnt int:=0; errs int:=0; dups int:=0; idx int:=1; snap jsonb; bk jsonb; snap_hash text; current_uid bigint; auth_hash text; auth_ok boolean; student_password text;
 begin
  select data into cfg from admission_private.config where id=1;
  if path in ('/api/login','/api/public/result') then
@@ -87,6 +87,24 @@ begin
  if path ~ '^/api/admin/students/[0-9]+' then sid:=split_part(path,'/',5)::bigint;
   select * into s from admission_private.students where id=sid;
   if s.id is null then return '{"_status":404,"error":"Estudiante no encontrado"}'; end if;
+ end if;
+ if path ~ '^/api/admin/students/[0-9]+/password$' then
+  if u.role<>'principal' then return '{"_status":403,"error":"Se requiere el administrador principal"}'; end if;
+  if method<>'PUT' then return '{"_status":405,"error":"Método no permitido"}'; end if;
+  if jsonb_typeof(body->'version') is distinct from 'number' or coalesce(body->>'version','') !~ '^[0-9]{1,9}$' then
+   raise exception 'Vuelva a abrir los datos del estudiante antes de generar la contraseña.'; end if;
+  if (body->>'version')::int<>s.version then return '{"_status":409,"error":"El expediente cambió. Vuelva a abrirlo."}'; end if;
+  -- Cryptographic randomness, six unambiguous uppercase letters/digits.
+  -- Return the new credential only to this authenticated principal; store only its hash.
+  loop
+   select string_agg(substr('ABCDEFGHJKLMNPQRSTUVWXYZ23456789',1+get_byte(r.bytes,i)%32,1),'' order by i)
+   into student_password from (select extensions.gen_random_bytes(6) bytes) r cross join generate_series(0,5) i;
+   exit when extensions.crypt(student_password,s.password_hash) is distinct from s.password_hash;
+  end loop;
+  update admission_private.students set password_hash=extensions.crypt(student_password,extensions.gen_salt('bf',12)),
+   version=version+1,updated_at=now(),updated_by=u.id where id=sid returning version into n;
+  perform admission_private.log_event(u.id,'CONTRASENA_ESTUDIANTE_RESTABLECIDA',sid);
+  return jsonb_build_object('ok',true,'id',sid,'version',n,'password',student_password);
  end if;
  if (path='/api/admin/students' and method='POST') or (path ~ '^/api/admin/students/[0-9]+$' and method='PUT') then
   if trim(coalesce(body->>'identification',''))='' or length(body->>'identification')>40
